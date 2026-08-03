@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OH Storm Homework</title>
+
+<!-- ============================================================
+     OH STORM - REDIRECT PAGE
+     Single job: forward to the Apps Script PLAYER APP.
+
+     WHY THIS EXISTS: browsers signed into multiple Google accounts
+     rewrite script.google.com URLs to /macros/u/N/s/... , which is a
+     different address than the deployment and returns Google's
+     "unable to open the file" page. This domain is not Google's, so
+     nothing rewrites it. The jump happens as a fresh top-level
+     navigation, which does not carry account-scoping context.
+
+     TO UPDATE AFTER A REDEPLOY: change APP_URL below. Nothing else.
+     Do NOT add /u/0/ or any /u/ segment - that is the exact bug.
+     ============================================================ -->
+
+<style>
+  :root{ --navy:#19144E; --green:#077D40; --bg:#F6F7FB; }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:var(--bg); color:var(--navy);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; text-align:center;
+  }
+  .card{
+    background:#fff; border-radius:16px; padding:32px 24px;
+    box-shadow:0 2px 16px rgba(25,20,78,.10); max-width:420px; width:100%;
+  }
+  .bar{ height:5px; border-radius:3px; margin:0 auto 22px;
+        background:linear-gradient(90deg,var(--navy),var(--green)); width:64px; }
+  h1{ font-size:20px; margin:0 0 8px; letter-spacing:.02em; }
+  p{ font-size:15px; line-height:1.5; color:#4a4a63; margin:0 0 20px; }
+  a.btn{
+    display:inline-block; background:var(--green); color:#fff;
+    text-decoration:none; font-weight:600; font-size:16px;
+    padding:13px 26px; border-radius:10px;
+  }
+  .small{ font-size:13px; color:#7a7a90; margin:18px 0 0; }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="bar"></div>
+    <h1>OH Storm Homework</h1>
+    <p id="msg">Opening the app&hellip;</p>
+    <a class="btn" id="go" href="#">Open the app</a>
+    <p class="small">If nothing happens, tap the button above.</p>
+  </div>
+
+<script>
+  // ---- The ONLY line to change after a redeploy ----
+  var APP_URL = "https://script.google.com/macros/s/AKfycbxR_4vXZOZnCYuvOqMZIhyrzjKyCGJ7PFhAccJLkOohMsLQImkhvNb4KJbLsvLJSedqjw/exec";
+
+  // Wire the manual button first, so it works even if the auto-jump is blocked.
+  document.getElementById('go').setAttribute('href', APP_URL);
+
+  // replace() keeps this page out of history, so Back does not bounce
+  // the user between the redirect and the app.
+  try {
+    window.location.replace(APP_URL);
+  } catch (e) {
+    document.getElementById('msg').textContent = 'Tap below to open the app.';
+  }
+
+  // If we are still here after 2.5s the jump did not take. Say so plainly
+  // instead of leaving the user on a page that claims to be loading.
+  setTimeout(function(){
+    document.getElementById('msg').textContent = 'Tap below to open the app.';
+  }, 2500);
+</script>
+
+</body>
+</html>
