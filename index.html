@@ -253,6 +253,25 @@
        starting with "<" is an HTML error page from Google, which means the
        deployment is unreachable rather than the request being wrong.
        -------------------------------------------------------------------- */
+    /* --------------------------------------------------------------------
+       api(action, params, onSuccess, onFailure)
+
+       Replaces google.script.run. GET only: a cross-origin POST to Apps
+       Script loses its body when the 302 redirect is followed, because
+       browsers convert POST to GET on redirect. Object arguments go in
+       `payload` as JSON.
+
+       COLD STARTS: if the Apps Script project has not run for a few minutes,
+       Google spins up a fresh container and the first call can take 10-20s
+       or fail outright. That is not a bug in the app and there is no server
+       setting to disable it. So every call retries up to 3 times with a
+       growing pause, and a hard 25s ceiling per attempt stops a hung request
+       from blocking forever. Transient failures become slow successes
+       instead of visible errors.
+       -------------------------------------------------------------------- */
+    var API_MAX_TRIES = 3;
+    var API_TIMEOUT_MS = 25000;
+
     function api(action, params, onSuccess, onFailure){
       onFailure = onFailure || function(){};
       var qs = "?action=" + encodeURIComponent(action);
@@ -264,23 +283,68 @@
         if (typeof v === "object") v = JSON.stringify(v);
         qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v);
       }
-      fetch(API_URL + qs)
-        .then(function(r){ return r.text(); })
-        .then(function(t){
-          if (t && t.trim().charAt(0) === "<"){
-            onFailure(new Error("Could not reach the app server. Try again in a moment."));
-            return;
-          }
-          var d;
-          try { d = JSON.parse(t); }
-          catch (err){ onFailure(new Error("Unexpected response from the server.")); return; }
-          if (d && d.ok){ onSuccess(d); }
-          else { onFailure(new Error((d && d.error) || "Something went wrong.")); }
-        })
-        .catch(function(err){
-          onFailure(new Error("No connection. Check your signal and try again."));
-        });
+      var url = API_URL + qs;
+
+      function attempt(tryNo){
+        var settled = false;
+        // cache-buster: without it a retry can be served the same failed
+        // response from cache and every attempt "fails" identically.
+        var thisUrl = url + "&_t=" + Date.now();
+
+        var timer = setTimeout(function(){
+          if (settled) return;
+          settled = true;
+          retryOrFail(tryNo, new Error("The server is taking too long."));
+        }, API_TIMEOUT_MS);
+
+        fetch(thisUrl)
+          .then(function(r){ return r.text(); })
+          .then(function(t){
+            if (settled) return;
+            settled = true; clearTimeout(timer);
+
+            // HTML back = the deployment was unreachable. Often just a cold
+            // start, so this is retryable rather than fatal.
+            if (t && t.trim().charAt(0) === "<"){
+              retryOrFail(tryNo, new Error("Could not reach the app server."));
+              return;
+            }
+            var d;
+            try { d = JSON.parse(t); }
+            catch (err){ retryOrFail(tryNo, new Error("Unexpected response from the server.")); return; }
+
+            if (d && d.ok){ onSuccess(d); return; }
+
+            // A real server-side answer (bad PIN, player not found). NOT a
+            // transport problem, so do not retry - the answer will not change.
+            onFailure(new Error((d && d.error) || "Something went wrong."));
+          })
+          .catch(function(){
+            if (settled) return;
+            settled = true; clearTimeout(timer);
+            retryOrFail(tryNo, new Error("No connection. Check your signal and try again."));
+          });
+      }
+
+      function retryOrFail(tryNo, err){
+        if (tryNo < API_MAX_TRIES){
+          // 1.2s, then 2.4s - enough for a container to finish waking up.
+          setTimeout(function(){ attempt(tryNo + 1); }, 1200 * tryNo);
+        } else {
+          onFailure(err);
+        }
+      }
+
+      attempt(1);
     }
+
+    /* Fire-and-forget wake-up call. Costs nothing, ignores its own result,
+       and means the first thing the user actually does lands on a warm
+       container instead of paying the cold-start penalty. */
+    function warmUp(){
+      try { fetch(API_URL + "?action=getLoginNames&_warm=" + Date.now()); } catch(e){}
+    }
+    warmUp();
 
     showLogin();
 
@@ -296,10 +360,10 @@
     /* ---------- UNIFIED PIN LOGIN (coach + player) ---------- */
     function showLogin(){
       showView('login');
-      el('loginOut').innerHTML = '<div class="loginlogo" role="img" aria-label="Ohio Storm"></div><div class="phello">Please select your name from the list below and enter your PIN to access your homework.</div><div class="muted" style="text-align:center;">Loading names…</div>';
+      el('loginOut').innerHTML = '<div class="loginlogo" role="img" aria-label="Ohio Storm"></div><div class="phello">Please select your name from the list below and enter your PIN to access your homework.</div><div class="muted" style="text-align:center;">Waking up the app… this can take a few seconds the first time.</div>';
       api('getLoginNames', {},
         function(d){ renderLogin(d.names || []); },
-        function(){ el('loginOut').innerHTML = '<div class="err">Could not load names. Refresh to try again.</div>'; });
+        function(){ el('loginOut').innerHTML = '<div class="loginlogo" role="img" aria-label="Ohio Storm"></div><div class="err" style="text-align:center;">Could not load names.</div><button class="bigbtn" onclick="showLogin()">Try again</button>'; });
     }
     function renderLogin(names){
       var opts = '<option value="">— Select Your Name —</option>';
