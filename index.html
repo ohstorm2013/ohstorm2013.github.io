@@ -272,8 +272,17 @@
     var API_MAX_TRIES = 3;
     var API_TIMEOUT_MS = 25000;
 
-    function api(action, params, onSuccess, onFailure){
+    // opts (all optional): { tries: n, timeout: ms }
+    // Upload actions need longer timeouts because createUploadSession creates
+    // Drive folders before minting the session - several round-trips in one
+    // execution. And verifyUpload passes tries:1 because verifyAndFinish
+    // already runs its own retry loop; without this the two stack into a
+    // dozen attempts and look like a hang.
+    function api(action, params, onSuccess, onFailure, opts){
       onFailure = onFailure || function(){};
+      opts = opts || {};
+      var maxTries = opts.tries || API_MAX_TRIES;
+      var timeoutMs = opts.timeout || API_TIMEOUT_MS;
       var qs = "?action=" + encodeURIComponent(action);
       params = params || {};
       for (var k in params){
@@ -295,7 +304,7 @@
           if (settled) return;
           settled = true;
           retryOrFail(tryNo, new Error("The server is taking too long."));
-        }, API_TIMEOUT_MS);
+        }, timeoutMs);
 
         fetch(thisUrl)
           .then(function(r){ return r.text(); })
@@ -327,7 +336,7 @@
       }
 
       function retryOrFail(tryNo, err){
-        if (tryNo < API_MAX_TRIES){
+        if (tryNo < maxTries){
           // 1.2s, then 2.4s - enough for a container to finish waking up.
           setTimeout(function(){ attempt(tryNo + 1); }, 1200 * tryNo);
         } else {
@@ -517,13 +526,15 @@
           return;
         }
         setProg(0, 'Preparing…');
+        setProg(0, 'Preparing… (first upload of the day can take a moment)');
         api('createUploadSession',
           { email: STATE.myEmail, fileName: file.name, mimeType: file.type || 'application/octet-stream' },
           function(d){
             setProg(0, 'Starting transfer…');
             streamToSession(d.sessionUrl, file);
           },
-          uploadErr);
+          uploadErr,
+          { timeout: 60000, tries: 2 });
       });
     }
 
@@ -540,13 +551,50 @@
       try { reader.readAsArrayBuffer(file.slice(0, 1)); }
       catch(e){ clearTimeout(timer); finish(false); }
     }
+    // The file bytes go straight to googleapis.com, bypassing Apps Script
+    // entirely, so this leg is fast and not subject to cold starts. But a
+    // dropped signal mid-transfer would otherwise hang forever with no
+    // error, so a stall watchdog fails it after 90s of zero progress.
+    // No overall time limit: a long video on a slow phone connection is
+    // legitimately slow and must not be killed while bytes are moving.
     function streamToSession(sessionUrl, file){
       var xhr = new XMLHttpRequest(); xhr.open('PUT', sessionUrl, true);
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-      xhr.upload.onprogress = function(ev){ if (ev.lengthComputable){ var pct = Math.round((ev.loaded/ev.total)*100); setProg(pct, 'Uploading… '+pct+'%'); } };
-      xhr.upload.onload = function(){ setProg(100, 'Finishing…'); verifyAndFinish(); };
-      xhr.onload = function(){ setProg(100, 'Finishing…'); verifyAndFinish(); };
-      xhr.onerror = function(){ setProg(100, 'Finishing…'); verifyAndFinish(); };
+
+      var stallTimer = null;
+      var finished = false;
+      function resetStall(){
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = setTimeout(function(){
+          if (finished) return;
+          finished = true;
+          try { xhr.abort(); } catch(e){}
+          uploadErr(new Error('The upload stalled. Check your signal and try again.'));
+        }, 90000);
+      }
+      function done(){
+        if (finished) return;
+        finished = true;
+        if (stallTimer) clearTimeout(stallTimer);
+        setProg(100, 'Finishing…');
+        verifyAndFinish();
+      }
+
+      xhr.upload.onprogress = function(ev){
+        if (finished) return;
+        resetStall();
+        if (ev.lengthComputable){
+          var pct = Math.round((ev.loaded/ev.total)*100);
+          setProg(pct, 'Uploading… '+pct+'%');
+        }
+      };
+      xhr.upload.onload = done;
+      xhr.onload = done;
+      // Even on a network error the bytes may have landed, so verify rather
+      // than assume failure - that is what verifyUpload is for.
+      xhr.onerror = done;
+
+      resetStall();
       xhr.send(file);
     }
     var verifyTries = 0;
@@ -560,14 +608,18 @@
         function(){
           if (verifyTries < 4){ verifyTries++; setTimeout(verifyAndFinish, 1500); }
           else { verifyTries = 0; uploadErr(new Error('upload could not be confirmed')); }
-        });
+        },
+        { tries: 1, timeout: 20000 });
     }
     // Renamed from markSubmitted() so it does not collide with the new server-side
     // markSubmitted action on the server.
     function markSubmittedNow(){
+      // Either way the file is already in Drive, so never block the player
+      // on this. Worst case the coach sees the file but not the status pill.
       api('markSubmitted', { email: STATE.myEmail },
         function(){ finishSuccess(); },
-        function(){ finishSuccess(); });
+        function(){ finishSuccess(); },
+        { tries: 2, timeout: 30000 });
     }
     function finishSuccess(){ setProg(100,'Done!'); el('upMsg').textContent='Uploaded'; el('uploadBtn').disabled = false; playerWeekToday(); }
     function setProg(pct, text){ el('progBar').style.width = pct+'%'; if(text) el('progText').textContent = text; }
