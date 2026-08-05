@@ -714,7 +714,19 @@
     function uploadErr(e){ el('uploadBtn').disabled = false; el('upMsg').textContent = 'Upload error: '+errMsg(e); }
 
     var STATE_weeksLoaded = false;
-    function startCoach(){ loadDashboard(); }
+    /* The coach lands on Dashboard, but almost always visits Homework and
+       Roster next. Those calls are now cached server-side, so firing them
+       once in the background means the cache is already warm when the tab
+       is tapped - the switch feels instant instead of triggering a fresh
+       round trip. Results are discarded; this is purely to prime the cache.
+       Staggered so we do not hit Apps Script with three simultaneous
+       requests, which can queue behind each other and help nothing. */
+    function prefetchCoachTabs(){
+      setTimeout(function(){ api('getFullRoster', {}, function(){}, function(){}, {tries:1}); }, 1500);
+      setTimeout(function(){ api('getWeekChoices', {}, function(){}, function(){}, {tries:1}); }, 3000);
+    }
+
+    function startCoach(){ loadDashboard(); prefetchCoachTabs(); }
 
     function showTab(which){
       var hw = which === 'hw';
