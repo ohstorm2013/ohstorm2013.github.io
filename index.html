@@ -472,9 +472,10 @@
           a.files.forEach(function(f){ html += '<div class="f">'+esc(f)+'</div>'; });
           html += '</div>';
         }
-        html += '<input type="file" id="fileInput" accept="video/*,image/*" style="margin-top:8px;">';
+        html += '<input type="file" id="fileInput" accept="video/*,image/*" style="margin-top:8px;" onchange="onFilePicked()">';
+        html += '<div id="fileInfo" class="msg"></div>';
         html += '<button class="bigbtn" id="uploadBtn" onclick="startUpload()">Upload</button>';
-        html += '<div class="progress hidden" id="prog"><div id="progText">Uploading…</div><div class="bar"><div id="progBar"></div></div></div>';
+        html += '<div class="progress hidden" id="prog"><div id="progText">Uploading…</div><div class="bar"><div id="progBar"></div></div><div id="progHint" class="muted" style="font-size:12px;margin-top:6px;"></div></div>';
         html += '<div class="msg" id="upMsg"></div>';
       } else {
         html += '<h3>What you turned in</h3>';
@@ -502,6 +503,54 @@
       el('unknownOut').innerHTML = '<h1>Welcome</h1><div class="muted">You\'re signed in as '+esc(email)+', but I don\'t have you set up yet. Check with your coach.</div>';
     }
 
+    /* ---- FILE SIZE / TIME ESTIMATE HELPERS ----
+       There is no practical size ceiling: the bytes go straight to
+       googleapis.com and never touch Apps Script, and Google's resumable
+       endpoint handles multi-GB files. What actually loses uploads is
+       PATIENCE - a 150MB video on a phone's cell uplink is several minutes
+       of staring at a bar, and people force-quit or lock the screen.
+       So: show the size up front, warn when it will be slow, and show a
+       live time estimate during the transfer. */
+
+    var BIG_FILE_BYTES = 250 * 1024 * 1024;   // ~250MB: worth a heads-up
+    var HUGE_FILE_BYTES = 750 * 1024 * 1024;  // ~750MB: worth a stronger nudge
+
+    function fmtSize(bytes){
+      if (bytes >= 1024*1024*1024) return (bytes/(1024*1024*1024)).toFixed(1)+' GB';
+      if (bytes >= 1024*1024) return Math.round(bytes/(1024*1024))+' MB';
+      if (bytes >= 1024) return Math.round(bytes/1024)+' KB';
+      return bytes+' bytes';
+    }
+
+    function fmtTime(secs){
+      if (!isFinite(secs) || secs < 0) return '';
+      if (secs < 60) return 'less than a minute';
+      var m = Math.round(secs/60);
+      if (m === 1) return 'about 1 minute';
+      if (m < 60) return 'about '+m+' minutes';
+      var h = Math.floor(m/60), rem = m%60;
+      return 'about '+h+'h '+rem+'m';
+    }
+
+    function onFilePicked(){
+      var input = el('fileInput');
+      var info = el('fileInfo');
+      if (!info) return;
+      if (!input.files || !input.files.length){ info.textContent=''; info.className='msg'; return; }
+      var f = input.files[0];
+      var txt = f.name + ' — ' + fmtSize(f.size);
+      if (f.size >= HUGE_FILE_BYTES){
+        info.innerHTML = esc(txt) + '<br><strong>That is a big file.</strong> Connect to wifi if you can, and keep this screen open while it uploads.';
+        info.className = 'msg err';
+      } else if (f.size >= BIG_FILE_BYTES){
+        info.innerHTML = esc(txt) + '<br>This may take a few minutes on cell data. Keep this screen open while it uploads.';
+        info.className = 'msg';
+      } else {
+        info.textContent = txt;
+        info.className = 'msg muted';
+      }
+    }
+
     // ---- UPLOAD FLOW ----
     // Handshake calls go through api(). Only the file bytes leave this page
     // Anonymous cross-origin fetch to Apps Script gets Google's HTML sign-in page
@@ -514,6 +563,7 @@
       var file = input.files[0]; STATE.pendingFileName = file.name;
       if (!STATE.myEmail){ uploadErr(new Error('no email on this login — check the Roster row')); return; }
       el('uploadBtn').disabled = true; el('prog').classList.remove('hidden');
+      if (el('fileInfo')) el('fileInfo').textContent = '';
       setProg(0, 'Checking file…');
 
       // Cloud-storage files (Google Drive for Desktop, OneDrive, iCloud) can be
@@ -563,13 +613,17 @@
 
       var stallTimer = null;
       var finished = false;
+      var wentAway = false;   // set if the user backgrounds the app mid-transfer
       function resetStall(){
         if (stallTimer) clearTimeout(stallTimer);
         stallTimer = setTimeout(function(){
           if (finished) return;
           finished = true;
           try { xhr.abort(); } catch(e){}
-          uploadErr(new Error('The upload stalled. Check your signal and try again.'));
+          uploadErr(new Error(
+            document.hidden || wentAway
+              ? 'The upload stopped because the screen locked or you left the app. Try again and keep this screen open.'
+              : 'The upload stalled. Check your signal and try again.'));
         }, 90000);
       }
       function done(){
@@ -580,13 +634,35 @@
         verifyAndFinish();
       }
 
+      // Live time estimate. Uses a rolling sample rather than a whole-transfer
+      // average so the number reacts when the connection changes, but is
+      // smoothed enough not to jitter every tick. Nothing is shown until 3s
+      // and 5% have passed - an estimate from the first moments is noise.
+      var startedAt = Date.now();
+      var lastShown = 0;
+
       xhr.upload.onprogress = function(ev){
         if (finished) return;
         resetStall();
-        if (ev.lengthComputable){
-          var pct = Math.round((ev.loaded/ev.total)*100);
-          setProg(pct, 'Uploading… '+pct+'%');
+        if (!ev.lengthComputable){ setProg(0, 'Uploading…'); return; }
+
+        var pct = Math.round((ev.loaded/ev.total)*100);
+        var elapsed = (Date.now() - startedAt)/1000;
+        var label = 'Uploading… '+pct+'%';
+
+        if (elapsed > 3 && pct >= 5){
+          var rate = ev.loaded/elapsed;               // bytes/sec so far
+          var remaining = (ev.total - ev.loaded)/rate;
+          // Only refresh the wording every 2s so it does not flicker.
+          if (Date.now() - lastShown > 2000){
+            lastShown = Date.now();
+            var t = fmtTime(remaining);
+            if (t) label += ' — ' + t + ' left';
+          } else {
+            label = el('progText') ? el('progText').textContent.replace(/^Uploading… \d+%/, 'Uploading… '+pct+'%') : label;
+          }
         }
+        setProg(pct, label);
       };
       xhr.upload.onload = done;
       xhr.onload = done;
@@ -594,6 +670,18 @@
       // than assume failure - that is what verifyUpload is for.
       xhr.onerror = done;
 
+      // iOS suspends network activity when the screen locks or the user
+      // switches apps, which silently stalls the transfer. We cannot prevent
+      // that, but we can tell them up front and explain it if it happens.
+      if (el('progHint')) el('progHint').textContent = 'Keep this screen open. Locking the phone or switching apps can stop the upload.';
+
+      function onHide(){ if (!finished && document.hidden) wentAway = true; }
+      document.addEventListener('visibilitychange', onHide);
+      var origDone = done;
+      done = function(){
+        document.removeEventListener('visibilitychange', onHide);
+        origDone();
+      };
       resetStall();
       xhr.send(file);
     }
