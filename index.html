@@ -851,11 +851,15 @@
       var box=el('copy-'+id); var ta=el('ta-'+id); var stat=el('copystat-'+id);
       var picks=[].slice.call(box.querySelectorAll('input[type=checkbox]:checked')).map(function(c){ return c.value; });
       if(!picks.length){ stat.textContent='Pick at least one.'; stat.className='stat err'; return; }
-      stat.textContent='Copying…'; stat.className='stat muted';
+      stat.textContent='Copying to '+picks.length+'… this can take up to a minute.'; stat.className='stat muted';
+      // Copying is a slow write: one sheet read + a Drive folder walk PER player.
+      // 25s is not enough, and retrying doesn't cancel the first request - it just
+      // launches a second concurrent write of the same rows. tries:1 stops that.
       api('saveAssignmentToMany',
         { payload: { players:picks, weekIso:STATE.weekIso, note:ta.value, links:STATE.links[id] || [] } },
         function(){ stat.textContent='Copied to '+picks.length+'.'; stat.className='stat ok'; },
-        function(err){ stat.textContent=errMsg(err); stat.className='stat err'; });
+        function(err){ stat.textContent=errMsg(err); stat.className='stat err'; },
+        { tries:1, timeout:120000 });
     }
 
     function renderRoster(players){
