@@ -347,6 +347,66 @@
       attempt(1);
     }
 
+    /* ---------------------------------------------------------------------
+       AUTO-UPDATE CHECK
+
+       This is what stops "please clear your cache" from being a recurring
+       message to 12 kids' families. Browsers - especially phones, and
+       anything saved to a home screen - can hold onto an old copy of this
+       page far longer than feels reasonable.
+
+       The trick: fetch this same page with {cache:'no-store'}, which forces
+       the browser to bypass its own cache and ask the real server, then
+       compare the ETag/Last-Modified it gets back against what we saw last
+       time. That comparison is accurate regardless of what caching GitHub
+       Pages does, because cache:'no-store' ignores it for this one request.
+
+       - On a fresh page load, before anything is on screen, a mismatch means
+         a silent one-time reload. Safe to do without asking: nothing has
+         happened yet, so there is nothing to lose.
+       - After that, a mismatch never force-reloads. It only offers a banner.
+         A background check should never be the reason someone's half-typed
+         assignment or in-progress upload disappears.
+
+       IMPORTANT: this only protects updates from THIS deploy forward. It
+       cannot retroactively un-stale a copy that was cached before this code
+       existed - that one still needs a manual refresh, once.
+       -------------------------------------------------------------------- */
+    var DOC_TAG_KEY = 'ohstorm_doc_tag';
+    function checkForUpdate(onStale){
+      try {
+        var url = window.location.origin + window.location.pathname;
+        fetch(url, { method: 'HEAD', cache: 'no-store' })
+          .then(function(r){
+            var tag = r.headers.get('ETag') || r.headers.get('Last-Modified');
+            if (!tag) return; // server gave us nothing to compare - skip quietly
+            var stored = null;
+            try { stored = localStorage.getItem(DOC_TAG_KEY); } catch(e){}
+            if (stored && stored !== tag) { onStale(tag); }
+            else { try { localStorage.setItem(DOC_TAG_KEY, tag); } catch(e){} }
+          })
+          .catch(function(){}); // offline or blocked - never let this disrupt the app
+      } catch(e){}
+    }
+    function forceFreshReload(newTag){
+      try { localStorage.setItem(DOC_TAG_KEY, newTag); } catch(e){}
+      window.location.replace(window.location.pathname + '?_v=' + Date.now());
+    }
+    function showUpdateBanner(){
+      if (el('updateBanner')) return;
+      var b = document.createElement('div');
+      b.id = 'updateBanner';
+      b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:var(--navy);color:#fff;padding:12px 16px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:9999;box-shadow:0 -2px 12px rgba(0,0,0,.25);';
+      b.innerHTML = '<span>A newer version of the app is ready.</span>'+
+        '<button style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:14px;" onclick="window.location.reload()">Refresh</button>';
+      document.body.appendChild(b);
+    }
+    function startUpdateWatcher(){
+      checkForUpdate(function(tag){ forceFreshReload(tag); });
+      setInterval(function(){ checkForUpdate(showUpdateBanner); }, 5 * 60 * 1000);
+    }
+    startUpdateWatcher();
+
     /* Fire-and-forget wake-up call. Costs nothing, ignores its own result,
        and means the first thing the user actually does lands on a warm
        container instead of paying the cold-start penalty. */
