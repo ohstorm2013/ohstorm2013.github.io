@@ -462,6 +462,11 @@
         a.links.forEach(function(u){ html += '<a href="'+esc(u)+'" target="_blank">'+esc(u)+'</a>'; });
         html += '</div>';
       }
+      if (a.dueIso){
+        html += '<div class="msg" style="margin-top:10px;font-weight:700;'+(a.locked ? 'color:var(--err);' : 'color:var(--muted);')+'">'
+          + (a.locked ? 'Due date passed: ' + esc(a.dueIso) : 'Due by 11:59 PM on ' + esc(a.dueIso))
+          + '</div>';
+      }
 
       html += '<div class="uploadbox">';
       if (a.isCurrentWeek){
@@ -472,11 +477,18 @@
           a.files.forEach(function(f){ html += '<div class="f">'+esc(f)+'</div>'; });
           html += '</div>';
         }
-        html += '<input type="file" id="fileInput" accept="video/*,image/*" style="margin-top:8px;" onchange="onFilePicked()">';
-        html += '<div id="fileInfo" class="msg"></div>';
-        html += '<button class="bigbtn" id="uploadBtn" onclick="startUpload()">Upload</button>';
-        html += '<div class="progress hidden" id="prog"><div id="progText">Uploading…</div><div class="bar"><div id="progBar"></div></div><div id="progHint" class="muted" style="font-size:12px;margin-top:6px;"></div></div>';
-        html += '<div class="msg" id="upMsg"></div>';
+        // The server (createUploadSession_) is the real gate. This just avoids
+        // letting a kid tap Upload and watch it fail — it hides the button
+        // instead. A coach can reopen the week by resaving with a later date.
+        if (a.locked){
+          html += '<div class="err" style="font-weight:600;">Uploads are closed for this week — the deadline has passed. Ask your coach if you need more time.</div>';
+        } else {
+          html += '<input type="file" id="fileInput" accept="video/*,image/*" style="margin-top:8px;" onchange="onFilePicked()">';
+          html += '<div id="fileInfo" class="msg"></div>';
+          html += '<button class="bigbtn" id="uploadBtn" onclick="startUpload()">Upload</button>';
+          html += '<div class="progress hidden" id="prog"><div id="progText">Uploading…</div><div class="bar"><div id="progBar"></div></div><div id="progHint" class="muted" style="font-size:12px;margin-top:6px;"></div></div>';
+          html += '<div class="msg" id="upMsg"></div>';
+        }
       } else {
         html += '<h3>What you turned in</h3>';
         if (a.files && a.files.length){
@@ -806,6 +818,8 @@
               '<div class="stitle">Assign homework</div>'+
               last+
               '<textarea id="ta-'+id+'" placeholder="This week\u2019s assignment…">'+esc(p.thisWeek)+'</textarea>'+
+              '<label for="due-'+id+'" style="margin-top:10px;">Due date <span class="muted" style="font-weight:400;">(optional — leave blank for no deadline)</span></label>'+
+              '<input type="date" id="due-'+id+'" value="'+esc(p.dueIso||"")+'">'+
               '<div class="links2"><span class="lbl">Links (YouTube, Drive, Hudl, any URL)</span>'+
                 '<div id="links-'+id+'"></div>'+
                 '<div class="addlink"><input id="newlink-'+id+'" placeholder="Paste a link and tap Add">'+
@@ -831,9 +845,10 @@
 
     function saveOne(name){
       var id=cssSafe(name); var ta=el('ta-'+id); var stat=el('stat-'+id);
+      var dueEl = el('due-'+id);
       stat.textContent='Saving…'; stat.className='stat muted';
       api('saveAssignment',
-        { payload: { player:name, weekIso:STATE.weekIso, note:ta.value, links:STATE.links[cssSafe(name)] || [] } },
+        { payload: { player:name, weekIso:STATE.weekIso, note:ta.value, dueIso: dueEl ? dueEl.value : "", links:STATE.links[cssSafe(name)] || [] } },
         function(){ stat.textContent='Saved'; stat.className='stat ok'; },
         function(err){ stat.textContent=errMsg(err); stat.className='stat err'; });
     }
@@ -852,11 +867,12 @@
       var picks=[].slice.call(box.querySelectorAll('input[type=checkbox]:checked')).map(function(c){ return c.value; });
       if(!picks.length){ stat.textContent='Pick at least one.'; stat.className='stat err'; return; }
       stat.textContent='Copying to '+picks.length+'… this can take up to a minute.'; stat.className='stat muted';
+      var dueEl = el('due-'+id);
       // Copying is a slow write: one sheet read + a Drive folder walk PER player.
       // 25s is not enough, and retrying doesn't cancel the first request - it just
       // launches a second concurrent write of the same rows. tries:1 stops that.
       api('saveAssignmentToMany',
-        { payload: { players:picks, weekIso:STATE.weekIso, note:ta.value, links:STATE.links[id] || [] } },
+        { payload: { players:picks, weekIso:STATE.weekIso, note:ta.value, dueIso: dueEl ? dueEl.value : "", links:STATE.links[id] || [] } },
         function(){ stat.textContent='Copied to '+picks.length+'.'; stat.className='stat ok'; },
         function(err){ stat.textContent=errMsg(err); stat.className='stat err'; },
         { tries:1, timeout:120000 });
