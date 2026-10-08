@@ -153,6 +153,15 @@
     .bars .n { text-align:right; color:var(--muted); font-size:12px; }
     .bars .n b { color:var(--ink); }
     .callout { background:var(--mist); border:1px solid var(--mist-line); color:var(--green-deep); border-radius:12px; padding:10px 12px; font-size:13.5px; margin-top:10px; }
+    textarea { width:100%; font:inherit; font-size:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); min-height:70px; resize:vertical; }
+    .note { background:#FFFBEA; border:1px solid #F1E3A6; border-radius:12px; padding:10px 12px; margin-top:8px; font-size:14.5px; color:var(--ink); }
+    .note .by { font-size:12px; color:var(--muted); margin-top:4px; display:flex; justify-content:space-between; gap:8px; }
+    .note .x { border:0; background:none; color:#b3261e; font-weight:800; cursor:pointer; padding:0 4px; }
+    .reasons button { display:block; width:100%; text-align:left; background:#EEF1F9; color:var(--navy); padding:14px; font-size:15px; margin-top:8px; }
+    .dots { display:flex; gap:5px; justify-content:center; margin:10px 0 4px; }
+    .dots i { width:16px; height:16px; border-radius:50%; background:var(--misswash); border:1px solid #F2C9C3; }
+    .dots i.h { background:var(--green); border-color:var(--green); }
+    .livecard { border:2px solid transparent; } .livecard.cur { border-color:var(--green); }
     .callout.warn { background:var(--misswash); border-color:#F2C9C3; color:#8c2a1f; }
     table.t { width:100%; border-collapse:collapse; font-size:13.5px; }
     table.t th { text-align:left; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; padding:6px 4px; border-bottom:2px solid var(--line); }
@@ -190,7 +199,7 @@
       cfg:null,         // {pitchers:[...]}
       game:null,        // {id, date, opponent, status}
       serverCounts:{},  // pitcher -> highest pitch # already saved for this game
-      pitcher:null, num:1,
+      pitcher:null, num:1, inning:1,
       history:[]        // pitches charted on THIS phone this game (for Undo)
     };
 
@@ -341,6 +350,7 @@
       }
       h += menuBtn('target', 'Chart a game', 'Start a new game or join one in progress', 'showGames()');
       if (u.role === 'coach'){
+        h += menuBtn('play', 'Live game', 'Watch a game as it is charted', 'showLive()');
         h += menuBtn('bars', 'Results', 'Team totals, game by game and season', 'showStaff()');
         h += menuBtn('list', 'Games &amp; teams', 'Report cards, and what counts in season stats', 'showGameList()');
       } else if (isPitcher){
@@ -375,14 +385,14 @@
       if (!opp){ m.textContent = 'Enter who we are playing.'; m.className = 'msg err'; return; }
       var b = el('ngb'); b.disabled = true; b.textContent = 'Starting…';
       api('pt_newGame', { opponent:opp, charter:STATE.user.name }, function(d){
-        STATE.game = d.data; STATE.serverCounts = {}; STATE.history = []; STATE.pitcher = null;
+        STATE.game = d.data; STATE.serverCounts = {}; STATE.history = []; STATE.pitcher = null; STATE.inning = 1;
         saveSession(); pickPitcher();
       }, function(err){ b.disabled = false; b.textContent = 'Next: pick the pitcher ›'; m.textContent = errMsg(err); m.className = 'msg err'; }, { tries:1 });
     }
     function joinGame(id, then){
       setApp('<div class="card muted">Joining game…</div>');
       api('pt_gameState', { gameId:id }, function(d){
-        STATE.game = d.data.game; STATE.serverCounts = d.data.counts || {}; STATE.history = [];
+        STATE.game = d.data.game; STATE.serverCounts = d.data.counts || {}; STATE.history = []; STATE.inning = d.data.inning || 1;
         saveSession();
         if (then) then(d.data); else if (d.data.lastPitcher) showContinue(d.data.lastPitcher); else pickPitcher();
       }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showGames()">‹ Back</button>'); });
@@ -432,7 +442,7 @@
 
     /* ======================= CHARTING: one tap per pitch ======================= */
     function renderChart(anim){
-      var h = '<div class="board"><div class="who"><div class="lbl">Now pitching</div><div class="nm">'+esc(STATE.pitcher)+'</div><div class="op">vs '+esc(STATE.game.opponent)+'</div><span id="syncBadge" class="sync"></span></div>'+
+      var h = '<div class="board"><div class="who"><div class="lbl">Now pitching</div><div class="nm">'+esc(STATE.pitcher)+'</div><div class="op">vs '+esc(STATE.game.opponent)+' · Inning '+STATE.inning+'</div><span id="syncBadge" class="sync"></span></div>'+
               '<div class="pn"><div class="l">Pitch</div><div class="v">#'+STATE.num+'</div></div></div>';
       h += '<div class="card" style="padding-top:14px;">';
       h += '<div class="hm"><button class="hit" onclick="recordPitch(true)">✓ HIT SPOT</button>'+
@@ -441,17 +451,54 @@
       var mine = STATE.history.filter(function(p){ return p.pitcher === STATE.pitcher; });
       var last = mine.slice(-6).reverse();
       h += '<div class="strip">'+last.map(function(p){ return '<span class="'+(p.hit ? 'h' : 'm')+'">#'+p.num+' '+(p.hit ? 'HIT' : 'MISS')+'</span>'; }).join('')+'</div>';
-      if (mine.length){
+      if (mine.length && STATE.user.role === 'coach'){
         var hits = mine.filter(function(p){ return p.hit; }).length;
         h += '<div class="running">Charted on this phone: '+hits+' of '+mine.length+' hit ('+Math.round(hits*100/mine.length)+'%)</div>';
       }
       h += '</div>';
-      h += '<div class="tools"><button onclick="undoLast()">↶ Undo last</button><button onclick="pickPitcher()">Change pitcher</button><button onclick="handOff()">Hand off to a teammate</button><button onclick="endGame()">End game</button></div>';
+      h += '<button class="ghost" style="margin-top:12px;color:var(--green-deep);border-color:var(--mist-line);background:var(--mist);font-weight:800;" onclick="nextInning()">＋ Start inning '+(STATE.inning + 1)+'</button>';
+      h += '<div class="tools"><button onclick="undoLast()">↶ Undo last</button><button onclick="changePitcher()">Change pitcher</button><button onclick="handOff()">Hand off to a teammate</button><button onclick="endGame()">End game</button></div>';
       h += '<button class="ghost" style="margin-top:8px;" onclick="showFix()">✎ Fix an earlier pitch</button>';
       h += '<button class="ghost" onclick="showHome()">‹ Home (game stays open)</button>';
       setApp._next = 'chart';
       setApp(h, anim);
       renderSync();
+    }
+    /* ---- INNING MARKERS + WHY A PITCHER CAME OUT ---- */
+    function newEventId(){ return 'E' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    function sendEvent(type, value, after, done){
+      var ev = { id:newEventId(), gameId:STATE.game.id, pitcher:STATE.pitcher || '', type:type, value:String(value), after:after || 0, by:STATE.user.name, ts:stamp() };
+      api('pt_addEvent', ev, function(){ if (done) done(true); }, function(){ if (done) done(false); });
+    }
+    function nextInning(){
+      var n = STATE.inning + 1;
+      if (!confirm('Start inning '+n+'?')) return;
+      STATE.inning = n; renderChart(true);
+      sendEvent('INNING', n, STATE.num - 1, function(ok){
+        if (!ok){ STATE.inning = n - 1; toast('Inning did not save. Try again.'); if (el('syncBadge')) renderChart(); }
+      });
+    }
+    var PULL_REASONS = ['Planned change','Tired / velocity down','Struggling to hit spots','Hurt / not feeling right','Pitch or inning limit'];
+    function changePitcher(){
+      if (!STATE.pitcher || STATE.num <= 1) return pickPitcher();   // nothing thrown yet: no reason needed
+      showPullReason('change');
+    }
+    function showPullReason(mode){
+      var first = STATE.pitcher.split(' ')[0];
+      var opts = PULL_REASONS.slice(); if (mode === 'end') opts.unshift('Finished the game');
+      var h = '<h1>'+(mode === 'end' ? 'How did '+esc(first)+' finish?' : 'Why is '+esc(first)+' coming out?')+'</h1><div class="sub" style="margin-bottom:6px;">One tap. Only the coaches see this.</div><div class="card reasons">';
+      opts.forEach(function(r, i){ h += '<button onclick="pullChosen(\''+mode+'\','+i+')">'+esc(r)+'</button>'; });
+      h += '<button class="ghost" style="text-align:center;" onclick="pullChosen(\''+mode+'\',-1)">Skip</button></div>';
+      h += '<button class="ghost" onclick="renderChart()">‹ Back to charting</button>';
+      PULL_OPTS = opts; setApp(h);
+    }
+    var PULL_OPTS = [];
+    function pullChosen(mode, i){
+      var after = STATE.num - 1, go = function(){ if (mode === 'end') finishEnd(); else pickPitcher(); };
+      if (i < 0){ go(); return; }
+      var reason = PULL_OPTS[i];
+      if (mode === 'end'){ sendEvent('PULL', reason, after, function(){ go(); }); setApp('<div class="card muted">Saving…</div>'); }
+      else { sendEvent('PULL', reason, after, function(ok){ if (!ok) toast('Reason did not save.'); }); go(); }
     }
     var lastTap = 0;
     function recordPitch(hit){
@@ -580,6 +627,9 @@
     function endGame(){
       if (loadQ().length){ alert('Some pitches are still waiting to sync. Keep the app open a moment, then try again.'); syncNow(); return; }
       if (!confirm('End the game vs '+STATE.game.opponent+'?')) return;
+      if (STATE.pitcher && STATE.num > 1) showPullReason('end'); else finishEnd();
+    }
+    function finishEnd(){
       api('pt_endGame', { gameId:STATE.game.id }, function(){
         var gid = STATE.game.id;
         clearSession(); STATE.game = null; STATE.pitcher = null; STATE.history = [];
@@ -594,6 +644,11 @@
       authApi('pt_pitcherStats', { pitcher:name }, function(d){
         var s = d.data.summary;
         var h = '<h1>'+esc(name)+'</h1><div class="sub" style="margin-bottom:14px;">This season (since '+esc(niceDate(d.data.seasonStart))+')</div>';
+        var isCoach = STATE.user.role === 'coach', reload = 'showPitcher(\''+jsSafe(name)+'\''+(back ? ',\''+jsSafe(back)+'\'' : '')+')';
+        var notes = d.data.notes || [];
+        if (notes.length || isCoach){
+          h += '<div class="card"><h2>'+(isCoach ? 'Notes for '+esc(name.split(' ')[0]) : 'From your coaches')+'</h2>'+(notes.length ? notesHtml(notes, isCoach, reload, true) : '<div class="sub">No notes yet.</div>')+(isCoach ? noteForm(name, '', reload) : '')+'</div>';
+        }
         if (!s.n){ h += '<div class="card muted">No pitches charted yet this season.</div>'; }
         else {
           h += summaryCards(s, d.data.games.length);
@@ -712,6 +767,80 @@
         function(err){ alert(errMsg(err)); showGameList(); });
     }
     // onlyPitcher: players see just their own line from a game, never teammates'.
+    /* ---- coach notes (shown to the pitcher they are about) ---- */
+    function notesHtml(notes, canEdit, reload, showGame){
+      var h = '';
+      notes.forEach(function(n){
+        h += '<div class="note">'+esc(n.text)+'<div class="by"><span>'+esc(n.by)+' · '+esc(niceDate(String(n.ts).slice(0,10)))+(showGame && n.gameLabel ? ' · '+esc(n.gameLabel) : '')+'</span>'+
+             (canEdit ? '<button class="x" aria-label="remove note" onclick="removeNote(\''+jsSafe(n.id)+'\',\''+jsSafe(reload)+'\')">✕</button>' : '')+'</div></div>';
+      });
+      return h;
+    }
+    function noteForm(pitcher, gameId, reload){
+      var id = 'nt_'+(gameId||'all')+'_'+pitcher.replace(/\W/g,'');
+      return '<div style="margin-top:10px;"><textarea id="'+id+'" placeholder="Note for '+esc(pitcher.split(' ')[0])+' (she will see this)"></textarea>'+
+             '<button class="ghost" style="margin-top:6px;" onclick="addNote(\''+jsSafe(pitcher)+'\',\''+jsSafe(gameId||'')+'\',\''+id+'\',\''+jsSafe(reload)+'\')">Save note</button></div>';
+    }
+    function addNote(pitcher, gameId, fieldId, reload){
+      var t = el(fieldId).value.trim(); if (!t){ toast('Type a note first'); return; }
+      authApi('pt_addNote', { pitcher:pitcher, gameId:gameId, text:t }, function(){ toast('Note saved'); eval(reload); }, function(err){ alert(errMsg(err)); });
+    }
+    function removeNote(id, reload){
+      if (!confirm('Remove this note?')) return;
+      authApi('pt_removeNote', { noteId:id }, function(){ toast('Note removed'); eval(reload); }, function(err){ alert(errMsg(err)); });
+    }
+    function inningsHtml(list){
+      if (!list || list.length < 2) return '';
+      var h = '<div class="card"><h2>By inning</h2><div class="bars">';
+      list.forEach(function(r){ h += bar('Inning '+r.inning, r.pct, r.hits+'/'+r.n); });
+      return h + '</div></div>';
+    }
+
+    /* ---- LIVE GAME (coach) ---- */
+    var LIVE = { id:null, timer:null };
+    function stopLive(){ if (LIVE.timer){ clearInterval(LIVE.timer); LIVE.timer = null; } LIVE.id = null; }
+    function showLive(){
+      stopLive();
+      setApp('<h1>Live game</h1><div class="card muted">Looking for games in progress…</div>');
+      api('pt_games', {}, function(d){
+        var open = d.data.filter(function(g){ return g.status === 'open'; });
+        if (open.length === 1) return showLiveGame(open[0].id);
+        var h = '<h1>Live game</h1>';
+        if (!open.length) h += '<div class="card muted">No game is in progress right now.</div>';
+        else {
+          h += '<div class="card"><h2>Pick a game</h2>';
+          open.forEach(function(g){ h += '<div class="row" onclick="showLiveGame(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div><span class="pill live">Watch</span></div>'; });
+          h += '</div>';
+        }
+        setApp(h + '<button class="ghost" onclick="showHome()">‹ Back</button>');
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    function showLiveGame(id){
+      stopLive(); LIVE.id = id;
+      var tick = function(){
+        if (LIVE.id !== id || !el('liveRoot')){ stopLive(); return; }
+        authApi('pt_live', { gameId:id }, function(d){ if (LIVE.id === id && el('liveRoot')) drawLive(d.data); }, function(){ var s = el('liveStamp'); if (s) s.textContent = 'No signal. Trying again…'; }, { tries:1 });
+      };
+      setApp('<div id="liveRoot"><h1>Live game</h1><div class="card muted">Loading…</div></div>');
+      tick(); LIVE.timer = setInterval(tick, 10000);
+    }
+    function drawLive(d){
+      var h = '<h1>vs '+esc(d.game.opponent)+'</h1><div class="sub" style="margin-bottom:12px;">Inning '+d.inning+' · '+(d.game.status === 'open' ? 'live' : 'final')+' · <span id="liveStamp">updated '+new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'})+'</span></div>';
+      if (!d.pitchers.length) h += '<div class="card muted">No pitches charted yet.</div>';
+      d.pitchers.slice().sort(function(a,b){ return (b.current?1:0) - (a.current?1:0); }).forEach(function(p){
+        h += '<div class="card livecard'+(p.current ? ' cur' : '')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><b style="font-size:17px;color:var(--navy);">'+esc(p.pitcher)+'</b>'+
+             (p.current ? '<span class="pill live">pitching now</span>' : (p.pulled ? '<span class="pill">out after #'+p.pulled.after+'</span>' : '<span class="pill">done</span>'))+'</div>'+
+             '<div class="kpis" style="margin-top:10px;"><div class="kpi hero"><div class="v">'+pct(p.pct)+'</div><div class="l">Hit spot</div></div><div class="kpi"><div class="v">'+p.hits+'/'+p.n+'</div><div class="l">Hits / pitches</div></div><div class="kpi"><div class="v">'+p.last5.hits+'/'+p.last5.n+'</div><div class="l">Last 5</div></div></div>'+
+             '<div class="dots">'+p.seq.map(function(x){ return '<i class="'+(x ? 'h' : '')+'"></i>'; }).join('')+'</div><div class="sub" style="text-align:center;">last '+p.seq.length+' pitches, newest on the right</div>';
+        if (p.alert === 'red') h += '<div class="callout warn">Missing spots: <b>'+p.last5.hits+' of the last 5</b>. Time to check in?</div>';
+        else if (p.alert === 'amber') h += '<div class="callout warn" style="background:#FFF6E0;border-color:#F1E3A6;color:#7a5a00;">Slipping: <b>'+p.last10.hits+' of the last 10</b>.</div>';
+        if (p.pulled) h += '<div class="sub" style="margin-top:8px;">Came out: '+esc(p.pulled.reason)+'</div>';
+        h += '</div>';
+      });
+      h += '<button class="ghost" onclick="stopLive();showHome()">‹ Back</button>';
+      el('liveRoot').innerHTML = h;
+    }
+
     var REPORT_BACK = 'showGameList()';   // where a coach's report goes back to (Results grid or the games list)
     function showReport(gameId, onlyPitcher){
       setApp('<h1>Game report</h1><div class="card muted">Loading…</div>');
@@ -723,6 +852,13 @@
         if (!list.length) h += '<div class="card muted">No pitches charted in this game.</div>';
         list.forEach(function(p){
           h += '<div style="font-size:17px;font-weight:900;color:var(--navy);margin:18px 2px 8px;">'+esc(p.pitcher)+'</div>' + summaryCards(p.summary);
+          h += inningsHtml(p.innings);
+          if (p.pulled && STATE.user.role === 'coach') h += '<div class="callout" style="background:#FFFBEA;border-color:#F1E3A6;color:#7a5a00;margin:0 0 12px;">Came out after pitch <b>'+p.pulled.after+'</b>: '+esc(p.pulled.reason)+'</div>';
+          var rl = 'showReport(\''+jsSafe(g.id)+'\''+(onlyPitcher ? ',\''+jsSafe(onlyPitcher)+'\'' : '')+')';
+          if ((p.notes && p.notes.length) || STATE.user.role === 'coach'){
+            h += '<div class="card"><h2>Coach notes</h2>'+(p.notes && p.notes.length ? notesHtml(p.notes, STATE.user.role === 'coach', rl, false) : '<div class="sub">No notes for this game yet.</div>')+
+                 (STATE.user.role === 'coach' ? noteForm(p.pitcher, g.id, rl) : '')+'</div>';
+          }
         });
         var back = onlyPitcher ? 'showPitcher(\''+jsSafe(onlyPitcher)+'\')' : REPORT_BACK;
         if (STATE.user.role === 'coach') h += '<button class="ghost" onclick="setExcluded(\''+jsSafe(g.id)+'\','+(g.excluded ? 'false' : 'true')+')">'+(g.excluded ? 'Count this game in season stats again' : 'Don\'t count this game in season stats')+'</button>';
