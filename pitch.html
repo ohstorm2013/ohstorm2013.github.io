@@ -63,6 +63,20 @@
     .strip span { font-size:12px; font-weight:800; padding:4px 9px; border-radius:999px; }
     .strip .h { background:var(--mist); color:var(--green-deep); } .strip .m { background:var(--misswash); color:#8c2a1f; }
     .running { text-align:center; font-size:13px; color:var(--muted); margin-top:8px; }
+    .toggle { width:46px; height:27px; border-radius:999px; background:#D5D8E6; border:none; padding:0; position:relative; cursor:pointer; flex-shrink:0; transition:background .18s; }
+    .toggle.on { background:var(--green); }
+    .toggle .knob { position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .18s; }
+    .toggle.on .knob { left:22px; }
+    .row.off { opacity:.55; }
+    .legend { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-weight:700; padding:0 2px 8px; border-bottom:1px solid var(--line); }
+    .logrow { display:flex; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid var(--line); }
+    .logrow:last-child { border-bottom:none; }
+    .logrow .num { font-weight:900; color:var(--navy); width:44px; }
+    .logrow .grow { flex:1; }
+    .tag { font-size:12px; font-weight:800; padding:4px 10px; border-radius:999px; }
+    .tag.h { background:var(--mist); color:var(--green-deep); } .tag.m { background:var(--misswash); color:#8c2a1f; }
+    .logrow button { padding:9px 11px; font-size:13px; background:#EEF1F9; color:var(--navy); }
+    .logrow button.rm { background:transparent; color:var(--miss); }
     .tools { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
     .tools button { background:#EEF1F9; color:var(--navy); padding:12px 6px; font-size:13px; }
     .toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 22px); transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 18px; border-radius:999px; font-weight:700; font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,.2); opacity:0; transition:opacity .2s; pointer-events:none; z-index:9; }
@@ -362,6 +376,7 @@
       }
       h += '</div>';
       h += '<div class="tools"><button onclick="undoLast()">↶ Undo last</button><button onclick="pickPitcher()">Change pitcher</button><button onclick="handOff()">Hand off to a teammate</button><button onclick="endGame()">End game</button></div>';
+      h += '<button class="ghost" style="margin-top:8px;" onclick="showFix()">✎ Fix an earlier pitch</button>';
       h += '<button class="ghost" onclick="showHome()">‹ Home (game stays open)</button>';
       setApp(h, anim);
       renderSync();
@@ -396,6 +411,75 @@
       saveSession(); toast('Pitch #'+last.num+' removed');
       renderChart(true);
     }
+    /* ---- FIX AN EARLIER PITCH ----
+       Any scorer can correct any pitch in the open game (including ones a
+       teammate charted). Nothing is deleted: a correction flips HIT/MISS and
+       records who changed it; "Remove" voids the row like Undo does. */
+    var FIX = { pitches:[], pitcher:null };
+    function showFix(pitcher){
+      if (pitcher) FIX.pitcher = pitcher; else if (!FIX.pitcher) FIX.pitcher = STATE.pitcher;
+      setApp('<h1>Fix a pitch</h1><div class="card" style="text-align:center;"><div class="sub" id="fixMsg">Saving your latest pitches…</div></div>');
+      var tries = 0;
+      (function wait(){
+        if (loadQ().length && ++tries <= 8){ syncNow(); setTimeout(wait, 1200); return; }
+        authApi('pt_pitchLog', { gameId:STATE.game.id }, function(d){
+          var server = d.data.pitches, have = {}; server.forEach(function(p){ have[p.id] = true; });
+          // anything still waiting to sync on this phone is included too
+          var local = loadQ().filter(function(p){ return p.gameId === STATE.game.id && !have[p.id]; })
+            .map(function(p){ return { id:p.id, pitcher:p.pitcher, num:p.num, hit:p.hit, charter:p.charter, editedBy:'', local:true }; });
+          FIX.pitches = server.concat(local);
+          renderFix();
+        }, function(err){ setApp('<h1>Fix a pitch</h1><div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="renderChart()">‹ Back to charting</button>'); });
+      })();
+    }
+    function renderFix(){
+      var names = []; FIX.pitches.forEach(function(p){ if (names.indexOf(p.pitcher) === -1) names.push(p.pitcher); });
+      if (names.indexOf(FIX.pitcher) === -1 && names.length) FIX.pitcher = names[names.length - 1];
+      var h = '<h1>Fix a pitch</h1><div class="sub" style="margin-bottom:12px;">vs '+esc(STATE.game.opponent)+'. Tap <b>Switch</b> to change HIT / MISS, newest first.</div>';
+      if (names.length > 1){
+        h += '<div class="card" style="padding:10px;"><select id="fixWho" onchange="FIX.pitcher=this.value; renderFix()">'+
+          names.map(function(n){ return '<option value="'+esc(n)+'"'+(n === FIX.pitcher ? ' selected' : '')+'>'+esc(n)+'</option>'; }).join('')+'</select></div>';
+      }
+      var mine = FIX.pitches.filter(function(p){ return p.pitcher === FIX.pitcher; }).sort(function(a, b){ return b.num - a.num; });
+      h += '<div class="card">';
+      if (!mine.length) h += '<div class="muted">No pitches charted yet.</div>';
+      mine.forEach(function(p){
+        h += '<div class="logrow"><div class="num">#'+p.num+'</div><div class="grow"><span class="tag '+(p.hit ? 'h' : 'm')+'">'+(p.hit ? 'HIT' : 'MISS')+'</span>'+
+             (p.editedBy ? ' <span class="sub">fixed by '+esc(p.editedBy.split(' ')[0])+'</span>' : '')+'</div>'+
+             '<button onclick="fixFlip(\''+jsSafe(p.id)+'\')">Switch to '+(p.hit ? 'MISS' : 'HIT')+'</button>'+
+             '<button class="rm" onclick="fixRemove(\''+jsSafe(p.id)+'\','+p.num+')" aria-label="remove pitch">✕</button></div>';
+      });
+      h += '</div><button class="big navy" onclick="renderChart()">Done · back to charting</button>';
+      setApp(h);
+    }
+    function fixFind(id){ for (var i = 0; i < FIX.pitches.length; i++) if (FIX.pitches[i].id === id) return FIX.pitches[i]; return null; }
+    function fixApplyLocal(id, hit){
+      var q = loadQ(); q.forEach(function(p){ if (p.id === id) p.hit = hit; }); saveQ(q);
+      STATE.history.forEach(function(p){ if (p.id === id) p.hit = hit; });
+    }
+    function fixFlip(id){
+      var p = fixFind(id); if (!p) return;
+      var hit = !p.hit;
+      if (p.local){
+        fixApplyLocal(id, hit); p.hit = hit; p.editedBy = STATE.user.name; renderFix(); return;
+      }
+      authApi('pt_editPitch', { pitchId:id, hit:hit }, function(d){
+        if (!d.data.edited){ alert('That pitch could not be found. Reopen this screen.'); return; }
+        p.hit = hit; p.editedBy = STATE.user.name; fixApplyLocal(id, hit); toast('Pitch #'+p.num+' is now '+(hit ? 'HIT' : 'MISS')); renderFix();
+      }, function(err){ alert(errMsg(err)); });
+    }
+    function fixRemove(id, num){
+      if (!confirm('Remove pitch #'+num+'? It will stop counting. (Later pitches keep their numbers.)')) return;
+      var p = fixFind(id); if (!p) return;
+      function done(){
+        FIX.pitches = FIX.pitches.filter(function(x){ return x.id !== id; });
+        STATE.history = STATE.history.filter(function(x){ return x.id !== id; });
+        toast('Pitch #'+num+' removed'); renderFix();
+      }
+      if (p.local){ saveQ(loadQ().filter(function(x){ return x.id !== id; })); done(); return; }
+      authApi('pt_removePitch', { pitchId:id }, done, function(err){ alert(errMsg(err)); });
+    }
+
     // Scorer is going into the game. Push every pitch to the server first so
     // the next scorer's phone sees the right pitch number, then sign out.
     function handOff(){
@@ -492,14 +576,23 @@
     function showGameList(){
       setApp('<h1>Game reports</h1><div class="card muted">Loading…</div>');
       api('pt_games', {}, function(d){
-        var h = '<h1>Game reports</h1><div class="card">';
+        var h = '<h1>Games &amp; teams</h1><div class="sub" style="margin-bottom:14px;">Every game we have charted. Tap a game for its report. Use the switch to choose whether it counts in season stats. Nothing is ever deleted.</div><div class="card">';
         if (!d.data.length) h += '<div class="muted">No games yet.</div>';
+        else h += '<div class="legend"><span>Game</span><span>Counts in stats</span></div>';
         d.data.forEach(function(g){
-          h += '<div class="row" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div><span class="pill'+(g.status === 'open' && !g.excluded ? ' live' : '')+'">'+(g.excluded ? 'Not counted' : (g.status === 'open' ? 'In progress' : 'Final'))+'</span></div>';
+          var on = !g.excluded;
+          h += '<div class="row'+(on ? '' : ' off')+'" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+' · '+(g.status === 'open' ? 'in progress' : 'final')+'</div></div>'+
+               '<button class="toggle'+(on ? ' on' : '')+'" aria-label="counts in season stats" onclick="event.stopPropagation(); toggleCounts(\''+jsSafe(g.id)+'\','+on+')"><span class="knob"></span></button></div>';
         });
         h += '</div><button class="ghost" onclick="showHome()">‹ Back</button>';
         setApp(h);
       }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    // currentlyCounted=true means this tap turns counting OFF.
+    function toggleCounts(id, currentlyCounted){
+      authApi('pt_excludeGame', { gameId:id, excluded:currentlyCounted },
+        function(){ toast(currentlyCounted ? 'Game no longer counted' : 'Game counted again'); showGameList(); },
+        function(err){ alert(errMsg(err)); showGameList(); });
     }
     // onlyPitcher: players see just their own line from a game, never teammates'.
     function showReport(gameId, onlyPitcher){
