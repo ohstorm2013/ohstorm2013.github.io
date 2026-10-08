@@ -158,6 +158,12 @@
     .note .by { font-size:12px; color:var(--muted); margin-top:4px; display:flex; justify-content:space-between; gap:8px; }
     .note .x { border:0; background:none; color:#b3261e; font-weight:800; cursor:pointer; padding:0 4px; }
     .reasons button { display:block; width:100%; text-align:left; background:#EEF1F9; color:var(--navy); padding:14px; font-size:15px; margin-top:8px; }
+    .reg { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .reg span { min-width:54px; text-align:center; font-size:13px; font-weight:800; padding:7px 8px; border-radius:10px; }
+    .reg .h { background:var(--mist); color:var(--green-deep); border:1px solid var(--mist-line); }
+    .reg .m { background:var(--misswash); color:#8c2a1f; border:1px solid #F2C9C3; }
+    .reghd { display:flex; justify-content:space-between; font-size:13px; font-weight:800; color:var(--navy); margin-top:14px; }
+    .trend { width:100%; height:auto; display:block; margin-top:6px; }
     .dots { display:flex; gap:5px; justify-content:center; margin:10px 0 4px; }
     .dots i { width:16px; height:16px; border-radius:50%; background:var(--misswash); border:1px solid #F2C9C3; }
     .dots i.h { background:var(--green); border-color:var(--green); }
@@ -652,6 +658,7 @@
         if (!s.n){ h += '<div class="card muted">No pitches charted yet this season.</div>'; }
         else {
           h += summaryCards(s, d.data.games.length);
+          h += trendHtml('Trend', 'Hit-spot % in each game', d.data.games.slice().reverse().map(function(g){ return { label:shortDate(g.date), pct:g.pct, n:g.n }; }));
           h += '<div class="card"><h2>Game by game</h2><table class="t"><tr><th>Game</th><th>Pitches</th><th>Hit spot</th></tr>';
           d.data.games.forEach(function(g){
             h += '<tr class="click" onclick="showReport(\''+jsSafe(g.gameId)+'\',\''+jsSafe(name)+'\')"><td><b>vs '+esc(g.opponent || '?')+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></td><td>'+g.n+'</td><td><b>'+pct(g.pct)+'</b></td></tr>';
@@ -706,6 +713,7 @@
              '<button class="'+(T === 'games' ? 'on' : '')+'" onclick="showStaff(\'games\')">Game by game</button></div>';
 
         if (T === 'season'){
+          h += trendHtml('Team trend', 'Team hit-spot % in each counted game', r.games.filter(function(g){ return !g.excluded && g.team && g.team.n; }).slice().reverse().map(function(g){ return { label:shortDate(g.date), pct:g.team.pct, n:g.team.n }; }));
           h += '<div class="card">';
           if (!r.team.n) h += '<div class="muted">No pitches charted yet.</div>';
           else {
@@ -789,6 +797,49 @@
       if (!confirm('Remove this note?')) return;
       authApi('pt_removeNote', { noteId:id }, function(){ toast('Note removed'); eval(reload); }, function(err){ alert(errMsg(err)); });
     }
+    /* ---- pitch-by-pitch register ---- */
+    function registerHtml(log){
+      if (!log || !log.length) return '';
+      var groups = [], idx = {};
+      log.forEach(function(x){ if (idx[x.inning] === undefined){ idx[x.inning] = groups.length; groups.push({ inning:x.inning, items:[] }); } groups[idx[x.inning]].items.push(x); });
+      var h = '<div class="card"><h2>Pitch by pitch</h2><div class="sub">Green = hit the spot, red = missed it.</div>';
+      groups.forEach(function(g){
+        var hits = g.items.filter(function(x){ return x.hit; }).length;
+        if (groups.length > 1) h += '<div class="reghd"><span>Inning '+g.inning+'</span><span>'+hits+' of '+g.items.length+'</span></div>';
+        h += '<div class="reg">'+g.items.map(function(x){ return '<span class="'+(x.hit ? 'h' : 'm')+'">#'+x.n+' '+(x.hit ? '✓' : '✗')+'</span>'; }).join('')+'</div>';
+      });
+      return h + '</div>';
+    }
+    /* ---- trend line (hit % game to game) ---- */
+    // points: oldest first, [{label, pct, n}]
+    function trendHtml(title, sub, points){
+      points = points.filter(function(p){ return p.pct !== null && p.pct !== undefined; });
+      var h = '<div class="card"><h2>'+esc(title)+'</h2><div class="sub">'+esc(sub)+'</div>';
+      if (points.length < 2){ return h + '<div class="muted" style="margin-top:8px;">The trend shows up after the second game.</div></div>'; }
+      var W = 320, H = 160, L = 34, R = 14, T = 12, B = 28, pw = W - L - R, ph = H - T - B;
+      var vals = points.map(function(p){ return p.pct; });
+      var lo = Math.max(0, Math.floor((Math.min.apply(null, vals) - 10) / 10) * 10), hi = Math.min(100, Math.ceil((Math.max.apply(null, vals) + 10) / 10) * 10);
+      while (hi - lo < 30){ if (lo > 0) lo -= 10; if (hi - lo < 30 && hi < 100) hi += 10; }
+      var ticks = [], tstep = (hi - lo) > 60 ? 25 : 10; for (var t = lo; t <= hi; t += tstep) ticks.push(t);
+      var X = function(i){ return L + 16 + i * (pw - 32) / (points.length - 1); };
+      var Y = function(v){ return T + ph - ((v - lo) / (hi - lo)) * ph; };
+      var s = '<svg class="trend" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Hit spot percent by game">';
+      ticks.forEach(function(g){
+        s += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(g)+'" y2="'+Y(g)+'" stroke="#E3E5F0" stroke-width="1"/><text x="'+(L-6)+'" y="'+(Y(g)+4)+'" text-anchor="end" font-size="10" fill="#6b6f8f">'+g+'%</text>';
+      });
+      s += '<polyline fill="none" stroke="#077D40" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="'+points.map(function(p,i){ return X(i)+','+Y(p.pct); }).join(' ')+'"/>';
+      var step = Math.ceil(points.length / 6);
+      points.forEach(function(p, i){
+        var last = i === points.length - 1;
+        s += '<circle cx="'+X(i)+'" cy="'+Y(p.pct)+'" r="'+(last ? 5 : 4)+'" fill="'+(last ? '#19144E' : '#077D40')+'" stroke="#fff" stroke-width="2"/>';
+        if (last || points.length <= 8) s += '<text x="'+X(i)+'" y="'+(Y(p.pct) - 9)+'" text-anchor="middle" font-size="10.5" font-weight="800" fill="#19144E">'+p.pct+'%</text>';
+        if (i % step === 0 || last) s += '<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#6b6f8f">'+esc(p.label)+'</text>';
+      });
+      var first = points[0].pct, lastp = points[points.length-1].pct, diff = lastp - first;
+      h += s + '</svg><div class="sub" style="margin-top:6px;text-align:center;">'+(diff > 0 ? '▲ up '+diff+' points since the first game' : (diff < 0 ? '▼ down '+(-diff)+' points since the first game' : 'Holding steady since the first game'))+'</div></div>';
+      return h;
+    }
+    function shortDate(iso){ var m = String(iso).match(/^\d{4}-(\d{2})-(\d{2})/); return m ? (Number(m[1])+'/'+Number(m[2])) : ''; }
     function inningsHtml(list){
       if (!list || list.length < 2) return '';
       var h = '<div class="card"><h2>By inning</h2><div class="bars">';
@@ -852,6 +903,7 @@
         if (!list.length) h += '<div class="card muted">No pitches charted in this game.</div>';
         list.forEach(function(p){
           h += '<div style="font-size:17px;font-weight:900;color:var(--navy);margin:18px 2px 8px;">'+esc(p.pitcher)+'</div>' + summaryCards(p.summary);
+          h += registerHtml(p.log);
           h += inningsHtml(p.innings);
           if (p.pulled && STATE.user.role === 'coach') h += '<div class="callout" style="background:#FFFBEA;border-color:#F1E3A6;color:#7a5a00;margin:0 0 12px;">Came out after pitch <b>'+p.pulled.after+'</b>: '+esc(p.pulled.reason)+'</div>';
           var rl = 'showReport(\''+jsSafe(g.id)+'\''+(onlyPitcher ? ',\''+jsSafe(onlyPitcher)+'\'' : '')+')';
