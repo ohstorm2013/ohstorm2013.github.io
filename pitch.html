@@ -1,0 +1,533 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#19144E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Storm Pitching">
+  <title>Storm Pitching</title>
+  <link rel="apple-touch-icon" href="data:image/png;base64,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">
+  <link rel="icon" type="image/png" href="data:image/png;base64,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">
+  <style>
+    :root {
+      --navy:#19144E; --navy-soft:#2a2470; --green:#077D40; --green-deep:#055f31;
+      --field:#F6F7FB; --card:#FFFFFF; --line:#E7E9F2; --muted:#6B7088; --ink:#1B1C2E;
+      --mist:#EAF5EE; --mist-line:#C6E6D2; --err:#b00020; --miss:#C0392B; --misswash:#FBECEA;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; margin:0;
+      padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 24px);
+      color:var(--ink); background:var(--field); line-height:1.45; -webkit-text-size-adjust:100%; }
+    .wrap { max-width:560px; margin:0 auto; }
+    .stormbar { height:4px; border-radius:999px; background:linear-gradient(90deg,var(--navy),var(--green)); margin-bottom:14px; }
+    h1 { font-size:22px; margin:0 0 4px; color:var(--navy); font-weight:800; letter-spacing:-.01em; }
+    h2 { font-size:15px; margin:0 0 10px; color:var(--navy); font-weight:800; }
+    .sub { color:var(--muted); font-size:13px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 2px 12px rgba(25,20,78,.05); }
+    .muted { color:var(--muted); } .err { color:var(--err); } .ok { color:var(--green); }
+    label { display:block; font-size:13px; font-weight:700; margin:12px 0 5px; color:var(--navy); }
+    input, select { width:100%; font:inherit; font-size:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+    button { font:inherit; font-weight:700; border:none; border-radius:12px; cursor:pointer; color:var(--ink); }
+    .big { display:block; width:100%; background:var(--green); color:#fff; padding:15px; font-size:16px; margin-top:12px; }
+    .big.navy { background:var(--navy); }
+    .big:disabled { opacity:.4; }
+    .ghost { display:block; width:100%; background:transparent; color:var(--muted); border:1px solid var(--line); padding:12px; font-size:14px; margin-top:12px; }
+    .msg { font-size:13px; margin-top:10px; min-height:18px; }
+    .menu { display:block; width:100%; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:10px; }
+    .menu .t { font-size:16px; color:var(--navy); font-weight:800; }
+    .menu .d { font-size:13px; color:var(--muted); font-weight:500; margin-top:2px; }
+    .row { display:flex; align-items:center; gap:10px; padding:12px 2px; border-bottom:1px solid var(--line); cursor:pointer; }
+    .row:last-child { border-bottom:none; }
+    .row .grow { flex:1; }
+    .pill { font-size:12px; font-weight:800; padding:4px 10px; border-radius:999px; background:#F0F1F7; color:var(--muted); white-space:nowrap; }
+    .pill.live { background:var(--mist); color:var(--green-deep); }
+
+    /* ---- charting ---- */
+    .chhead { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .chhead .who { flex:1; min-width:0; }
+    .chhead .who .p { font-weight:800; color:var(--navy); font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chhead .who .g { font-size:12px; color:var(--muted); }
+    .sync { font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:999px; background:var(--mist); color:var(--green-deep); white-space:nowrap; }
+    .sync.wait { background:#FFF4D6; color:#8a6300; }
+    .pnum { text-align:center; font-size:34px; font-weight:900; color:var(--navy); letter-spacing:-.02em; margin:2px 0 8px; }
+    .pnum small { display:block; font-size:12px; color:var(--muted); font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .hm { display:grid; grid-template-columns:1fr; gap:12px; margin-top:6px; }
+    .hm button { padding:30px 10px; font-size:26px; font-weight:900; border-radius:18px; letter-spacing:.02em; color:#fff; }
+    .hm .hit { background:var(--green); } .hm .hit:active { background:var(--green-deep); }
+    .hm .mis { background:var(--miss); } .hm .mis:active { background:#9b2d21; }
+    .hm button small { display:block; font-size:13px; font-weight:600; opacity:.9; letter-spacing:0; margin-top:2px; }
+    .strip { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:14px; min-height:28px; }
+    .strip span { font-size:12px; font-weight:800; padding:4px 9px; border-radius:999px; }
+    .strip .h { background:var(--mist); color:var(--green-deep); } .strip .m { background:var(--misswash); color:#8c2a1f; }
+    .running { text-align:center; font-size:13px; color:var(--muted); margin-top:8px; }
+    .tools { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
+    .tools button { background:#EEF1F9; color:var(--navy); padding:12px 6px; font-size:13px; }
+    .toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 22px); transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 18px; border-radius:999px; font-weight:700; font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,.2); opacity:0; transition:opacity .2s; pointer-events:none; z-index:9; }
+    .toast.show { opacity:1; }
+    .slidein { animation:slidein .22s ease-out; }
+    @keyframes slidein { from { transform:translateX(28px); opacity:0; } to { transform:none; opacity:1; } }
+
+    /* ---- stats ---- */
+    .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .kpi { background:var(--field); border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
+    .kpi .v { font-size:24px; font-weight:900; color:var(--navy); }
+    .kpi .l { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+    .kpi.hero .v { color:var(--green); }
+    .bars .b { display:grid; grid-template-columns:92px 1fr 64px; gap:8px; align-items:center; font-size:13px; margin:7px 0; }
+    .bars .track { height:10px; background:var(--line); border-radius:999px; overflow:hidden; }
+    .bars .fill { height:100%; background:linear-gradient(90deg,var(--navy),var(--green)); }
+    .bars .fill.low { background:var(--miss); }
+    .bars .n { text-align:right; color:var(--muted); font-size:12px; }
+    .bars .n b { color:var(--ink); }
+    .callout { background:var(--mist); border:1px solid var(--mist-line); color:var(--green-deep); border-radius:12px; padding:10px 12px; font-size:13.5px; margin-top:10px; }
+    .callout.warn { background:var(--misswash); border-color:#F2C9C3; color:#8c2a1f; }
+    table.t { width:100%; border-collapse:collapse; font-size:13.5px; }
+    table.t th { text-align:left; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; padding:6px 4px; border-bottom:2px solid var(--line); }
+    table.t td { padding:10px 4px; border-bottom:1px solid var(--line); }
+    table.t tr.click { cursor:pointer; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stormbar"></div>
+    <div id="app"><div class="card muted">Loading…</div></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /* ====================================================================
+       OH STORM — PITCH TRACKER (GitHub Pages: ohstorm2013.github.io/pitch.html)
+
+       Talks to its OWN Apps Script project (PitchApp.gs), separate from the
+       homework app. Login uses the same names and PINs: that project reads
+       the homework Sheet read-only. Homework's index.html is not involved.
+
+       API_URL = the pitch tracker deployment's /exec URL (NOT the homework one).
+       Do NOT paste a URL containing /u/0/ or /u/1/.
+       ==================================================================== */
+    var API_URL = "https://script.google.com/macros/s/AKfycbwNCj8tYpaU5cj2BB7zPS2ekeTvI9omOoCIU0Xs27GxVxdld6LAKSjKB7TvBva97F5a/exec";
+
+    var el = function(id){ return document.getElementById(id); };
+    var STATE = {
+      user:null,        // {name, role}
+      cfg:null,         // {pitchers:[...]}
+      game:null,        // {id, date, opponent, status}
+      serverCounts:{},  // pitcher -> highest pitch # already saved for this game
+      pitcher:null, num:1,
+      history:[]        // pitches charted on THIS phone this game (for Undo)
+    };
+
+    /* ---------------- api(): same as index.html ---------------- */
+    function api(action, params, onSuccess, onFailure, opts){
+      onFailure = onFailure || function(){};
+      opts = opts || {};
+      var maxTries = opts.tries || 3, timeoutMs = opts.timeout || 25000;
+      var qs = "?action=" + encodeURIComponent(action);
+      params = params || {};
+      for (var k in params){
+        if (!params.hasOwnProperty(k)) continue;
+        var v = params[k];
+        if (v === null || v === undefined) v = "";
+        if (typeof v === "object") v = JSON.stringify(v);
+        qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v);
+      }
+      var url = API_URL + qs;
+      function attempt(tryNo){
+        var settled = false;
+        var timer = setTimeout(function(){ if (settled) return; settled = true; retryOrFail(tryNo, new Error("The server is taking too long.")); }, timeoutMs);
+        fetch(url + "&_t=" + Date.now())
+          .then(function(r){ return r.text(); })
+          .then(function(t){
+            if (settled) return; settled = true; clearTimeout(timer);
+            if (t && t.trim().charAt(0) === "<"){ retryOrFail(tryNo, new Error("Could not reach the app server.")); return; }
+            var d; try { d = JSON.parse(t); } catch(e){ retryOrFail(tryNo, new Error("Unexpected response from the server.")); return; }
+            if (d && d.ok){ onSuccess(d); return; }
+            onFailure(new Error((d && d.error) || "Something went wrong."));
+          })
+          .catch(function(){ if (settled) return; settled = true; clearTimeout(timer); retryOrFail(tryNo, new Error("No connection. Check your signal and try again.")); });
+      }
+      function retryOrFail(tryNo, err){
+        if (tryNo < maxTries) setTimeout(function(){ attempt(tryNo + 1); }, 1200 * tryNo);
+        else onFailure(err);
+      }
+      attempt(1);
+    }
+    try { fetch(API_URL + "?action=getLoginNames&_warm=" + Date.now()); } catch(e){}
+
+    /* ----------------------------------------------------------------
+       OFFLINE PITCH QUEUE
+       Deliberate exception to the "no localStorage" rule, used ONLY for
+       pitches that have not reached the server yet. Dugout signal is bad
+       and Apps Script has cold starts; a kid must never wait between
+       pitches, and a locked phone or refresh must not lose an inning.
+       Each pitch has an id made here, so a re-sent batch never
+       double-counts (the server skips ids it already has).
+       ---------------------------------------------------------------- */
+    var QKEY = "ohsPitchQueue", SKEY = "ohsPitchSession";
+    var memQueue = [];
+    function loadQ(){ try { var v = localStorage.getItem(QKEY); return v ? JSON.parse(v) : memQueue; } catch(e){ return memQueue; } }
+    function saveQ(q){ memQueue = q; try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch(e){} renderSync(); }
+    function saveSession(){ try { localStorage.setItem(SKEY, JSON.stringify({ game:STATE.game, pitcher:STATE.pitcher, user:STATE.user && STATE.user.name })); } catch(e){} }
+    function loadSession(){ try { var v = localStorage.getItem(SKEY); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+    function clearSession(){ try { localStorage.removeItem(SKEY); } catch(e){} }
+
+    var syncing = false;
+    function syncNow(){
+      var q = loadQ();
+      if (syncing || !q.length) return;
+      syncing = true;
+      var batch = q.slice(0, 5);   // small batches keep the URL short
+      api('pt_addPitches', { payload:{ pitches:batch } },
+        function(d){
+          syncing = false;
+          var saved = {}; (d.data.saved || []).forEach(function(id){ saved[id] = true; });
+          saveQ(loadQ().filter(function(p){ return !saved[p.id]; }));
+          if (loadQ().length) setTimeout(syncNow, 300);
+        },
+        function(){ syncing = false; renderSync(); },
+        { tries:1, timeout:30000 });
+    }
+    setInterval(syncNow, 5000);
+    window.addEventListener('online', syncNow);
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) syncNow(); });
+    syncNow();
+
+    function renderSync(){
+      var s = el('syncBadge'); if (!s) return;
+      var n = loadQ().length;
+      if (n){ s.className = 'sync wait'; s.textContent = n + ' waiting to sync'; }
+      else { s.className = 'sync'; s.textContent = 'All saved ✓'; }
+    }
+
+    function toast(t){ var x = el('toast'); x.textContent = t; x.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function(){ x.classList.remove('show'); }, 1300); }
+    function setApp(html, anim){ el('app').innerHTML = '<div class="'+(anim?'slidein':'')+'">'+html+'</div>'; window.scrollTo(0,0); }
+
+    /* ======================= LOGIN ======================= */
+    function showLogin(){
+      setApp('<div class="card"><h1>Storm Pitching</h1><div class="sub">Same name and PIN as the homework app.</div><div class="muted" style="margin-top:14px;">Waking up the app… this can take a few seconds the first time.</div></div>');
+      api('getLoginNames', {}, function(d){
+        var opts = '<option value="">— Select Your Name —</option>';
+        (d.names || []).forEach(function(n){ opts += '<option value="'+esc(n)+'">'+esc(n)+'</option>'; });
+        setApp('<div class="card"><h1>Storm Pitching</h1><div class="sub">Same name and PIN as the homework app.</div>'+
+          '<label for="ln">Your name</label><select id="ln">'+opts+'</select>'+
+          '<label for="lp">PIN</label><input id="lp" autocomplete="off" autocapitalize="off" placeholder="your PIN">'+
+          '<button class="big" id="lb" onclick="doLogin()">Go</button><div class="msg" id="lm"></div></div>');
+      }, function(){
+        setApp('<div class="card"><h1>Storm Pitching</h1><div class="err">Could not load names.</div><button class="big" onclick="showLogin()">Try again</button></div>');
+      });
+    }
+    function doLogin(){
+      var name = el('ln').value, pin = el('lp').value.trim(), m = el('lm');
+      if (!name){ m.textContent = 'Pick your name first.'; m.className = 'msg err'; return; }
+      if (!pin){ m.textContent = 'Enter your PIN.'; m.className = 'msg err'; return; }
+      var b = el('lb'); b.disabled = true; b.textContent = 'Checking…';
+      api('login', { name:name, pin:pin }, function(res){
+        STATE.user = { name:res.name, role:res.role };
+        loadConfig(showHome);
+      }, function(err){ b.disabled = false; b.textContent = 'Go'; m.textContent = errMsg(err); m.className = 'msg err'; });
+    }
+    function loadConfig(then){
+      if (STATE.cfg){ then(); return; }
+      api('pt_config', {}, function(d){ STATE.cfg = d.data; then(); },
+        function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="big" onclick="loadConfig(showHome)">Try again</button>'); });
+    }
+    function signOut(){ STATE.user = null; STATE.game = null; STATE.pitcher = null; STATE.history = []; showLogin(); }
+
+    /* ======================= HOME ======================= */
+    function showHome(){
+      var u = STATE.user, first = u.name.split(' ')[0];
+      var isPitcher = STATE.cfg.pitchers.indexOf(u.name) !== -1;
+      var h = '<h1>Hi, '+esc(first)+'</h1><div class="sub" style="margin-bottom:16px;">'+(u.role === 'coach' ? 'Coach view' : 'What are we doing today?')+'</div>';
+      var sess = loadSession();
+      if (sess && sess.game && sess.game.status !== 'final'){
+        h += '<button class="menu" style="border-color:var(--green);" onclick="resumeSession()"><div class="t">▶ Resume charting</div><div class="d">vs '+esc(sess.game.opponent)+(sess.pitcher ? ' · '+esc(sess.pitcher)+' pitching' : '')+'</div></button>';
+      }
+      h += '<button class="menu" onclick="showGames()"><div class="t">Chart a game</div><div class="d">Start a new game or join one in progress</div></button>';
+      if (u.role === 'coach'){
+        h += '<button class="menu" onclick="showStaff()"><div class="t">Pitching staff</div><div class="d">Season numbers for every pitcher</div></button>';
+        h += '<button class="menu" onclick="showGameList()"><div class="t">Game reports</div><div class="d">Post-game report card for each pitcher</div></button>';
+      } else if (isPitcher){
+        h += '<button class="menu" onclick="showPitcher(\''+jsSafe(u.name)+'\')"><div class="t">My pitching</div><div class="d">How often you hit your spots, game by game</div></button>';
+      }
+      h += '<button class="ghost" onclick="signOut()">Close &amp; sign out</button>';
+      setApp(h);
+    }
+
+    /* ======================= GAME SETUP ======================= */
+    function showGames(){
+      setApp('<h1>Chart a game</h1><div class="card muted">Loading games…</div>');
+      api('pt_games', {}, function(d){
+        var today = todayIso();
+        var open = d.data.filter(function(g){ return g.status === 'open'; });
+        var h = '<h1>Chart a game</h1><div class="sub" style="margin-bottom:14px;">If a teammate already started this game, join it instead of making a new one.</div>';
+        if (open.length){
+          h += '<div class="card"><h2>Games in progress</h2>';
+          open.forEach(function(g){
+            h += '<div class="row" onclick="joinGame(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div>'+
+                 '<span class="pill'+(g.date === today ? ' live' : '')+'">'+(g.date === today ? 'Join' : 'Open')+'</span></div>';
+          });
+          h += '</div>';
+        }
+        h += '<div class="card"><h2>New game</h2><label for="opp">Who are we playing?</label><input id="opp" placeholder="e.g. Ohio Hawks 13U" autocomplete="off">'+
+             '<button class="big" id="ngb" onclick="newGame()">Next: pick the pitcher ›</button><div class="msg" id="ngm"></div></div>';
+        h += '<button class="ghost" onclick="showHome()">‹ Back</button>';
+        setApp(h);
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="big" onclick="showGames()">Try again</button><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    function newGame(){
+      var opp = el('opp').value.trim(), m = el('ngm');
+      if (!opp){ m.textContent = 'Enter who we are playing.'; m.className = 'msg err'; return; }
+      var b = el('ngb'); b.disabled = true; b.textContent = 'Starting…';
+      api('pt_newGame', { opponent:opp, charter:STATE.user.name }, function(d){
+        STATE.game = d.data; STATE.serverCounts = {}; STATE.history = []; STATE.pitcher = null;
+        saveSession(); pickPitcher();
+      }, function(err){ b.disabled = false; b.textContent = 'Next: pick the pitcher ›'; m.textContent = errMsg(err); m.className = 'msg err'; }, { tries:1 });
+    }
+    function joinGame(id, then){
+      setApp('<div class="card muted">Joining game…</div>');
+      api('pt_gameState', { gameId:id }, function(d){
+        STATE.game = d.data.game; STATE.serverCounts = d.data.counts || {}; STATE.history = [];
+        saveSession();
+        if (then) then(d.data); else if (d.data.lastPitcher) showContinue(d.data.lastPitcher); else pickPitcher();
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showGames()">‹ Back</button>'); });
+    }
+    // Handoff landing: the scorer who joins sees who is pitching and the next
+    // pitch number, and continues with one tap.
+    function showContinue(pitcher){
+      var n = nextNumFor(pitcher);
+      setApp('<h1>Pick up where they left off</h1><div class="sub" style="margin-bottom:14px;">vs '+esc(STATE.game.opponent)+'</div>'+
+        '<div class="card" style="text-align:center;"><div class="sub">Pitching now</div><div style="font-size:22px;font-weight:900;color:var(--navy);">'+esc(pitcher)+'</div>'+
+        '<div class="sub" style="margin-top:4px;">'+(n - 1)+' pitches charted so far</div>'+
+        '<button class="big" onclick="startPitcher(\''+jsSafe(pitcher)+'\')">Continue at pitch #'+n+' ›</button>'+
+        '<button class="ghost" onclick="pickPitcher()">A different pitcher is in now</button></div>'+
+        '<button class="ghost" onclick="showGames()">‹ Back</button>');
+    }
+    function resumeSession(){
+      var s = loadSession(); if (!s || !s.game) return showGames();
+      joinGame(s.game.id, function(state){
+        if (s.pitcher) startPitcher(s.pitcher); else pickPitcher(state.lastPitcher);
+      });
+    }
+    function pickPitcher(suggest){
+      var changing = !!STATE.pitcher;
+      var h = '<h1>'+(changing ? 'Pitching change' : 'Who\'s pitching?')+'</h1><div class="sub" style="margin-bottom:14px;">vs '+esc(STATE.game.opponent)+'</div><div class="card">';
+      STATE.cfg.pitchers.forEach(function(n){
+        var c = nextNumFor(n) - 1;
+        var tag = n === STATE.pitcher ? ' <span class="pill live">pitching now</span>' : (n === suggest ? ' <span class="pill live">last pitching</span>' : '');
+        h += '<div class="row" onclick="startPitcher(\''+jsSafe(n)+'\')"><div class="grow"><b>'+esc(n)+'</b>'+tag+'</div>'+
+             '<span class="muted" style="font-size:13px;">'+(c ? c+' pitches' : 'starts at #1')+'</span></div>';
+      });
+      h += '</div>';
+      h += '<button class="ghost" onclick="'+(changing ? 'renderChart()' : 'showGames()')+'">‹ Back</button>';
+      setApp(h);
+    }
+    // Next pitch # for a pitcher in THIS game: highest already saved (server,
+    // queue, or this phone) + 1. A new pitcher therefore starts at #1.
+    function nextNumFor(pitcher){
+      var max = STATE.serverCounts[pitcher] || 0;
+      loadQ().forEach(function(p){ if (p.gameId === STATE.game.id && p.pitcher === pitcher && p.num > max) max = p.num; });
+      STATE.history.forEach(function(p){ if (p.pitcher === pitcher && p.num > max) max = p.num; });
+      return max + 1;
+    }
+    function startPitcher(name){
+      STATE.pitcher = name; STATE.num = nextNumFor(name);
+      saveSession(); renderChart(true);
+    }
+
+    /* ======================= CHARTING: one tap per pitch ======================= */
+    function renderChart(anim){
+      var h = '<div class="chhead"><div class="who"><div class="p">'+esc(STATE.pitcher)+'</div><div class="g">vs '+esc(STATE.game.opponent)+'</div></div><span id="syncBadge" class="sync"></span></div>';
+      h += '<div class="card" style="padding-top:12px;">';
+      h += '<div class="pnum"><small>Pitch</small>#'+STATE.num+'</div>';
+      h += '<div class="hm"><button class="hit" onclick="recordPitch(true)">✓ HIT SPOT</button>'+
+           '<button class="mis" onclick="recordPitch(false)">✗ MISSED SPOT</button></div>';
+
+      var mine = STATE.history.filter(function(p){ return p.pitcher === STATE.pitcher; });
+      var last = mine.slice(-6).reverse();
+      h += '<div class="strip">'+last.map(function(p){ return '<span class="'+(p.hit ? 'h' : 'm')+'">#'+p.num+' '+(p.hit ? 'HIT' : 'MISS')+'</span>'; }).join('')+'</div>';
+      if (mine.length){
+        var hits = mine.filter(function(p){ return p.hit; }).length;
+        h += '<div class="running">Charted on this phone: '+hits+' of '+mine.length+' hit ('+Math.round(hits*100/mine.length)+'%)</div>';
+      }
+      h += '</div>';
+      h += '<div class="tools"><button onclick="undoLast()">↶ Undo last</button><button onclick="pickPitcher()">Change pitcher</button><button onclick="handOff()">Hand off to a teammate</button><button onclick="endGame()">End game</button></div>';
+      h += '<button class="ghost" onclick="showHome()">‹ Home (game stays open)</button>';
+      setApp(h, anim);
+      renderSync();
+    }
+    var lastTap = 0;
+    function recordPitch(hit){
+      if (Date.now() - lastTap < 400) return;   // ignore accidental double-taps
+      lastTap = Date.now();
+      var p = {
+        id: 'P' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        gameId: STATE.game.id, gameDate: STATE.game.date, opponent: STATE.game.opponent,
+        pitcher: STATE.pitcher, num: STATE.num, hit: hit,
+        charter: STATE.user.name, ts: stamp()
+      };
+      var q = loadQ(); q.push(p); saveQ(q);
+      STATE.history.push(p);
+      toast('Pitch #'+STATE.num+' · '+(hit ? 'HIT' : 'MISS'));
+      STATE.num++;
+      renderChart(true);
+      syncNow();
+    }
+    function undoLast(){
+      var last = STATE.history[STATE.history.length - 1];
+      if (!last){ toast('Nothing to undo on this phone'); return; }
+      if (!confirm('Undo '+last.pitcher.split(' ')[0]+'\'s pitch #'+last.num+' ('+(last.hit ? 'HIT' : 'MISS')+')?')) return;
+      STATE.history.pop();
+      var q = loadQ();
+      if (q.some(function(p){ return p.id === last.id; })) saveQ(q.filter(function(p){ return p.id !== last.id; }));
+      else api('pt_voidPitch', { pitchId:last.id }, function(){}, function(){ toast('Could not undo on the server. Tell your coach.'); });
+      if (STATE.serverCounts[last.pitcher] >= last.num) STATE.serverCounts[last.pitcher] = last.num - 1;
+      STATE.pitcher = last.pitcher; STATE.num = last.num;
+      saveSession(); toast('Pitch #'+last.num+' removed');
+      renderChart(true);
+    }
+    // Scorer is going into the game. Push every pitch to the server first so
+    // the next scorer's phone sees the right pitch number, then sign out.
+    function handOff(){
+      if (!confirm('Hand off scoring? Your pitches will finish saving, then a teammate can log in and pick up this game.')) return;
+      setApp('<div class="card" style="text-align:center;"><h2>Saving your pitches…</h2><div class="sub" id="hoMsg">Keep the app open.</div></div>');
+      var tries = 0;
+      (function wait(){
+        var n = loadQ().length;
+        if (!n){
+          var opp = STATE.game.opponent;
+          clearSession(); STATE.game = null; STATE.pitcher = null; STATE.history = []; STATE.user = null;
+          setApp('<div class="card" style="text-align:center;"><h1>All saved ✓</h1>'+
+            '<div class="sub" style="margin:8px 0 4px;">Your teammate logs in, taps <b>Chart a game</b>, then <b>Join</b> on the game vs '+esc(opp)+'.</div>'+
+            '<button class="big" onclick="showLogin()">Log in as the next scorer</button></div>');
+          return;
+        }
+        if (el('hoMsg')) el('hoMsg').textContent = n+' pitch'+(n === 1 ? '' : 'es')+' still saving… keep the app open.';
+        if (++tries > 40){
+          setApp('<div class="card"><h2>Still not saved</h2><div class="sub">'+n+' pitches are waiting for signal. Hand this phone to your teammate instead, or try again when you have signal.</div>'+
+            '<button class="big" onclick="handOff()">Try again</button><button class="ghost" onclick="renderChart()">‹ Back to charting</button></div>');
+          return;
+        }
+        syncNow(); setTimeout(wait, 1500);
+      })();
+    }
+    function endGame(){
+      if (loadQ().length){ alert('Some pitches are still waiting to sync. Keep the app open a moment, then try again.'); syncNow(); return; }
+      if (!confirm('End the game vs '+STATE.game.opponent+'?')) return;
+      api('pt_endGame', { gameId:STATE.game.id }, function(){
+        var gid = STATE.game.id;
+        clearSession(); STATE.game = null; STATE.pitcher = null; STATE.history = [];
+        toast('Game ended');
+        if (STATE.user.role === 'coach') showReport(gid); else showHome();
+      }, function(err){ alert(errMsg(err)); });
+    }
+
+    /* ======================= STATS ======================= */
+    function showPitcher(name, back){
+      setApp('<h1>'+esc(name)+'</h1><div class="card muted">Crunching the numbers…</div>');
+      api('pt_pitcherStats', { pitcher:name }, function(d){
+        var s = d.data.summary;
+        var h = '<h1>'+esc(name)+'</h1><div class="sub" style="margin-bottom:14px;">This season (since '+esc(niceDate(d.data.seasonStart))+')</div>';
+        if (!s.n){ h += '<div class="card muted">No pitches charted yet this season.</div>'; }
+        else {
+          h += summaryCards(s, d.data.games.length);
+          h += '<div class="card"><h2>Game by game</h2><table class="t"><tr><th>Game</th><th>Pitches</th><th>Hit spot</th></tr>';
+          d.data.games.forEach(function(g){
+            h += '<tr class="click" onclick="showReport(\''+jsSafe(g.gameId)+'\',\''+jsSafe(name)+'\')"><td><b>vs '+esc(g.opponent || '?')+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></td><td>'+g.n+'</td><td><b>'+pct(g.pct)+'</b></td></tr>';
+          });
+          h += '</table></div>';
+        }
+        h += '<button class="ghost" onclick="'+(back || 'showHome()')+'">‹ Back</button>';
+        setApp(h);
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    function summaryCards(s, games){
+      var h = '<div class="card"><div class="kpis">'+
+        '<div class="kpi hero"><div class="v">'+pct(s.pct)+'</div><div class="l">Hit spot</div></div>'+
+        '<div class="kpi"><div class="v">'+s.hits+'/'+s.n+'</div><div class="l">Hits / pitches</div></div>'+
+        (games !== undefined ? '<div class="kpi"><div class="v">'+games+'</div><div class="l">Games</div></div>'
+                             : '<div class="kpi"><div class="v">'+(s.n - s.hits)+'</div><div class="l">Misses</div></div>')+
+        '</div>';
+      if (s.fadeAt) h += '<div class="callout warn">Accuracy dropped off starting around <b>pitch '+s.fadeAt+'</b>.</div>';
+      h += '</div>';
+      if (s.blocks.length > 1){
+        h += '<div class="card"><h2>As the pitch count climbs</h2><div class="sub" style="margin-bottom:6px;">Does accuracy hold up deeper into the game?</div><div class="bars">';
+        s.blocks.forEach(function(b){ h += bar('Pitches '+b.from+'–'+b.to, b.pct, b.hits+'/'+b.n); });
+        h += '</div></div>';
+      }
+      return h;
+    }
+    function bar(label, p, right){
+      var w = p === null ? 0 : p;
+      return '<div class="b"><div>'+esc(label)+'</div><div class="track"><div class="fill'+(w < 50 ? ' low' : '')+'" style="width:'+w+'%"></div></div><div class="n"><b>'+pct(p)+'</b> '+esc(String(right))+'</div></div>';
+    }
+
+    /* ---- coach: staff + game reports ---- */
+    function showStaff(){
+      setApp('<h1>Pitching staff</h1><div class="card muted">Loading…</div>');
+      api('pt_overview', {}, function(d){
+        var h = '<h1>Pitching staff</h1><div class="sub" style="margin-bottom:14px;">Season since '+esc(niceDate(d.data.seasonStart))+'. Tap a pitcher for details.</div><div class="card">';
+        if (!d.data.staff.length) h += '<div class="muted">No pitches charted yet.</div>';
+        else {
+          h += '<table class="t"><tr><th>Pitcher</th><th>Pitches</th><th>Season</th><th>Last game</th></tr>';
+          d.data.staff.forEach(function(p){
+            h += '<tr class="click" onclick="showPitcher(\''+jsSafe(p.pitcher)+'\',\'showStaff()\')"><td><b>'+esc(p.pitcher)+'</b><div class="sub">'+p.games+' game'+(p.games === 1 ? '' : 's')+'</div></td><td>'+p.n+'</td><td><b>'+pct(p.pct)+'</b></td><td>'+(p.lastGameN ? pct(p.lastGamePct) : '—')+'</td></tr>';
+          });
+          h += '</table>';
+        }
+        h += '</div><button class="ghost" onclick="showHome()">‹ Back</button>';
+        setApp(h);
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    function showGameList(){
+      setApp('<h1>Game reports</h1><div class="card muted">Loading…</div>');
+      api('pt_games', {}, function(d){
+        var h = '<h1>Game reports</h1><div class="card">';
+        if (!d.data.length) h += '<div class="muted">No games yet.</div>';
+        d.data.forEach(function(g){
+          h += '<div class="row" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div><span class="pill'+(g.status === 'open' ? ' live' : '')+'">'+(g.status === 'open' ? 'In progress' : 'Final')+'</span></div>';
+        });
+        h += '</div><button class="ghost" onclick="showHome()">‹ Back</button>';
+        setApp(h);
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    // onlyPitcher: players see just their own line from a game, never teammates'.
+    function showReport(gameId, onlyPitcher){
+      setApp('<h1>Game report</h1><div class="card muted">Loading…</div>');
+      api('pt_gameReport', { gameId:gameId }, function(d){
+        var g = d.data.game;
+        var list = d.data.pitchers.filter(function(p){ return !onlyPitcher || p.pitcher === onlyPitcher; });
+        var h = '<h1>vs '+esc(g.opponent)+'</h1><div class="sub" style="margin-bottom:14px;">'+esc(niceDate(g.date))+(g.status === 'open' ? ' · in progress' : '')+'</div>';
+        if (!list.length) h += '<div class="card muted">No pitches charted in this game.</div>';
+        list.forEach(function(p){
+          h += '<div style="font-size:17px;font-weight:900;color:var(--navy);margin:18px 2px 8px;">'+esc(p.pitcher)+'</div>' + summaryCards(p.summary);
+        });
+        var back = onlyPitcher ? 'showPitcher(\''+jsSafe(onlyPitcher)+'\')' : 'showGameList()';
+        if (STATE.user.role === 'coach' && g.status === 'final') h += '<button class="ghost" onclick="reopenGame(\''+jsSafe(g.id)+'\')">Reopen this game for charting</button>';
+        h += '<button class="ghost" onclick="'+back+'">‹ Back</button>';
+        setApp(h);
+      }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
+    }
+    function reopenGame(id){ api('pt_reopenGame', { gameId:id }, function(){ toast('Game reopened'); showReport(id); }, function(err){ alert(errMsg(err)); }); }
+
+    /* ======================= HELPERS ======================= */
+    function pct(p){ return p === null || p === undefined ? '—' : p + '%'; }
+    function pad(n){ return (n < 10 ? '0' : '') + n; }
+    function todayIso(){ var d = new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+    function stamp(){ var d = new Date(); return todayIso()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+    function niceDate(iso){
+      var p = String(iso || '').split('-'); if (p.length < 3) return iso || '';
+      var d = new Date(+p[0], +p[1]-1, +p[2]);
+      return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+', '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getDate();
+    }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function jsSafe(s){ return esc(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
+    function errMsg(err){ return err && err.message ? err.message : String(err); }
+
+    showLogin();
+  </script>
+</body>
+</html>
