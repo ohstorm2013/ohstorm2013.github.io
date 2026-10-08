@@ -693,13 +693,13 @@
       REPORT_BACK = 'showGameList()';
       setApp('<h1>Game reports</h1><div class="card muted">Loading…</div>');
       api('pt_games', {}, function(d){
-        var h = '<h1>Games &amp; teams</h1><div class="sub" style="margin-bottom:14px;">Every game we have charted. Tap a game for its report. Use the switch to choose whether it counts in season stats. Nothing is ever deleted.</div><div class="card">';
+        var h = '<h1>Games &amp; teams</h1><div class="sub" style="margin-bottom:14px;">Every game we have charted. Tap a game for its report. Use the switch to choose whether it counts in season stats, or the trash can to delete a game for good.</div><div class="card">';
         if (!d.data.length) h += '<div class="muted">No games yet.</div>';
         else h += '<div class="legend"><span>Game</span><span>Counts in stats</span></div>';
         d.data.forEach(function(g){
           var on = !g.excluded;
           h += '<div class="row'+(on ? '' : ' off')+'" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+' · '+(g.status === 'open' ? 'in progress' : 'final')+'</div></div>'+
-               '<button class="toggle'+(on ? ' on' : '')+'" aria-label="counts in season stats" onclick="event.stopPropagation(); toggleCounts(\''+jsSafe(g.id)+'\','+on+')"><span class="knob"></span></button></div>';
+               '<button aria-label="delete game" style="border:0;background:none;color:#b3261e;font-size:20px;padding:6px 10px;" onclick="event.stopPropagation(); deleteGame(\''+jsSafe(g.id)+'\',\''+jsSafe(g.opponent)+'\')">🗑</button>'+'<button class="toggle'+(on ? ' on' : '')+'" aria-label="counts in season stats" onclick="event.stopPropagation(); toggleCounts(\''+jsSafe(g.id)+'\','+on+')"><span class="knob"></span></button></div>';
         });
         h += '</div><button class="ghost" onclick="showHome()">‹ Back</button>';
         setApp(h);
@@ -726,6 +726,7 @@
         });
         var back = onlyPitcher ? 'showPitcher(\''+jsSafe(onlyPitcher)+'\')' : REPORT_BACK;
         if (STATE.user.role === 'coach') h += '<button class="ghost" onclick="setExcluded(\''+jsSafe(g.id)+'\','+(g.excluded ? 'false' : 'true')+')">'+(g.excluded ? 'Count this game in season stats again' : 'Don\'t count this game in season stats')+'</button>';
+        if (STATE.user.role === 'coach') h += '<button class="ghost" style="color:#b3261e;border-color:#e6b8b4;" onclick="deleteGame(\''+jsSafe(g.id)+'\',\''+jsSafe(g.opponent)+'\')">Delete this game permanently</button>';
         if (STATE.user.role === 'coach' && g.status === 'final') h += '<button class="ghost" onclick="reopenGame(\''+jsSafe(g.id)+'\')">Reopen this game for charting</button>';
         h += '<button class="ghost" onclick="'+back+'">‹ Back</button>';
         setApp(h);
@@ -735,6 +736,10 @@
       var msg = makeExcluded ? 'Stop counting this game in season stats? Nothing is deleted, and you can turn it back on any time.' : 'Count this game in season stats again?';
       if (!confirm(msg)) return;
       authApi('pt_excludeGame', { gameId:id, excluded:makeExcluded }, function(){ toast(makeExcluded ? 'Game no longer counted' : 'Game counted again'); showReport(id); }, function(err){ alert(errMsg(err)); });
+    }
+    function deleteGame(id, opp){
+      if (!confirm('PERMANENTLY delete the game vs '+opp+' and all of its pitches? This cannot be undone.\n\n(To keep it but stop counting it, use the switch instead.)')) return;
+      authApi('pt_deleteGame', { gameId:id }, function(){ toast('Game deleted'); eval(REPORT_BACK); }, function(err){ alert(errMsg(err)); });
     }
     function reopenGame(id){ authApi('pt_reopenGame', { gameId:id }, function(){ toast('Game reopened'); showReport(id); }, function(err){ alert(errMsg(err)); }); }
 
