@@ -355,7 +355,7 @@
       api('pt_games', {}, function(d){
         var today = todayIso();
         var open = d.data.filter(function(g){ return g.status === 'open'; });
-        var h = '<h1>Chart a game</h1><div class="sub" style="margin-bottom:14px;">If a teammate already started this game, join it instead of making a new one.</div>';
+        var h = '<h1>Chart a game</h1><div class="sub" style="margin-bottom:14px;">If a teammate already started this game, join it instead of making a new one. <b>To join:</b> tap the game under &ldquo;Games in progress&rdquo; below (it says Join), then pick up at the pitch number it shows. Only tap &ldquo;New game&rdquo; if nobody has started this game yet.</div>';
         if (open.length){
           h += '<div class="card"><h2>Games in progress</h2>';
           open.forEach(function(g){
