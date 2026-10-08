@@ -114,6 +114,7 @@
     var el = function(id){ return document.getElementById(id); };
     var STATE = {
       user:null,        // {name, role}
+      pin:null,         // kept in memory only, so private stats requests can prove who is asking
       cfg:null,         // {pitchers:[...]}
       game:null,        // {id, date, opponent, status}
       serverCounts:{},  // pitcher -> highest pitch # already saved for this game
@@ -155,6 +156,12 @@
         else onFailure(err);
       }
       attempt(1);
+    }
+    // Private requests (stats) carry name + PIN; the server re-checks them every time.
+    function authApi(action, params, onSuccess, onFailure, opts){
+      params = params || {};
+      params.name = STATE.user ? STATE.user.name : ''; params.pin = STATE.pin || '';
+      api(action, params, onSuccess, onFailure, opts);
     }
     try { fetch(API_URL + "?action=getLoginNames&_warm=" + Date.now()); } catch(e){}
 
@@ -226,7 +233,7 @@
       if (!pin){ m.textContent = 'Enter your PIN.'; m.className = 'msg err'; return; }
       var b = el('lb'); b.disabled = true; b.textContent = 'Checking…';
       api('login', { name:name, pin:pin }, function(res){
-        STATE.user = { name:res.name, role:res.role };
+        STATE.user = { name:res.name, role:res.role }; STATE.pin = pin;
         loadConfig(showHome);
       }, function(err){ b.disabled = false; b.textContent = 'Go'; m.textContent = errMsg(err); m.className = 'msg err'; });
     }
@@ -235,7 +242,7 @@
       api('pt_config', {}, function(d){ STATE.cfg = d.data; then(); },
         function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="big" onclick="loadConfig(showHome)">Try again</button>'); });
     }
-    function signOut(){ STATE.user = null; STATE.game = null; STATE.pitcher = null; STATE.history = []; showLogin(); }
+    function signOut(){ STATE.user = null; STATE.pin = null; STATE.game = null; STATE.pitcher = null; STATE.history = []; showLogin(); }
 
     /* ======================= HOME ======================= */
     function showHome(){
@@ -399,7 +406,7 @@
         var n = loadQ().length;
         if (!n){
           var opp = STATE.game.opponent;
-          clearSession(); STATE.game = null; STATE.pitcher = null; STATE.history = []; STATE.user = null;
+          clearSession(); STATE.game = null; STATE.pitcher = null; STATE.history = []; STATE.user = null; STATE.pin = null;
           setApp('<div class="card" style="text-align:center;"><h1>All saved ✓</h1>'+
             '<div class="sub" style="margin:8px 0 4px;">Your teammate logs in, taps <b>Chart a game</b>, then <b>Join</b> on the game vs '+esc(opp)+'.</div>'+
             '<button class="big" onclick="showLogin()">Log in as the next scorer</button></div>');
@@ -428,7 +435,7 @@
     /* ======================= STATS ======================= */
     function showPitcher(name, back){
       setApp('<h1>'+esc(name)+'</h1><div class="card muted">Crunching the numbers…</div>');
-      api('pt_pitcherStats', { pitcher:name }, function(d){
+      authApi('pt_pitcherStats', { pitcher:name }, function(d){
         var s = d.data.summary;
         var h = '<h1>'+esc(name)+'</h1><div class="sub" style="margin-bottom:14px;">This season (since '+esc(niceDate(d.data.seasonStart))+')</div>';
         if (!s.n){ h += '<div class="card muted">No pitches charted yet this season.</div>'; }
@@ -468,7 +475,7 @@
     /* ---- coach: staff + game reports ---- */
     function showStaff(){
       setApp('<h1>Pitching staff</h1><div class="card muted">Loading…</div>');
-      api('pt_overview', {}, function(d){
+      authApi('pt_overview', {}, function(d){
         var h = '<h1>Pitching staff</h1><div class="sub" style="margin-bottom:14px;">Season since '+esc(niceDate(d.data.seasonStart))+'. Tap a pitcher for details.</div><div class="card">';
         if (!d.data.staff.length) h += '<div class="muted">No pitches charted yet.</div>';
         else {
@@ -488,7 +495,7 @@
         var h = '<h1>Game reports</h1><div class="card">';
         if (!d.data.length) h += '<div class="muted">No games yet.</div>';
         d.data.forEach(function(g){
-          h += '<div class="row" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div><span class="pill'+(g.status === 'open' ? ' live' : '')+'">'+(g.status === 'open' ? 'In progress' : 'Final')+'</span></div>';
+          h += '<div class="row" onclick="showReport(\''+jsSafe(g.id)+'\')"><div class="grow"><b>vs '+esc(g.opponent)+'</b><div class="sub">'+esc(niceDate(g.date))+'</div></div><span class="pill'+(g.status === 'open' && !g.excluded ? ' live' : '')+'">'+(g.excluded ? 'Not counted' : (g.status === 'open' ? 'In progress' : 'Final'))+'</span></div>';
         });
         h += '</div><button class="ghost" onclick="showHome()">‹ Back</button>';
         setApp(h);
@@ -497,21 +504,28 @@
     // onlyPitcher: players see just their own line from a game, never teammates'.
     function showReport(gameId, onlyPitcher){
       setApp('<h1>Game report</h1><div class="card muted">Loading…</div>');
-      api('pt_gameReport', { gameId:gameId }, function(d){
+      authApi('pt_gameReport', { gameId:gameId }, function(d){
         var g = d.data.game;
         var list = d.data.pitchers.filter(function(p){ return !onlyPitcher || p.pitcher === onlyPitcher; });
         var h = '<h1>vs '+esc(g.opponent)+'</h1><div class="sub" style="margin-bottom:14px;">'+esc(niceDate(g.date))+(g.status === 'open' ? ' · in progress' : '')+'</div>';
+        if (g.excluded) h += '<div class="callout warn" style="margin:0 0 12px;">This game is <b>not counted</b> in season stats. The pitches are still saved.</div>';
         if (!list.length) h += '<div class="card muted">No pitches charted in this game.</div>';
         list.forEach(function(p){
           h += '<div style="font-size:17px;font-weight:900;color:var(--navy);margin:18px 2px 8px;">'+esc(p.pitcher)+'</div>' + summaryCards(p.summary);
         });
         var back = onlyPitcher ? 'showPitcher(\''+jsSafe(onlyPitcher)+'\')' : 'showGameList()';
+        if (STATE.user.role === 'coach') h += '<button class="ghost" onclick="setExcluded(\''+jsSafe(g.id)+'\','+(g.excluded ? 'false' : 'true')+')">'+(g.excluded ? 'Count this game in season stats again' : 'Don\'t count this game in season stats')+'</button>';
         if (STATE.user.role === 'coach' && g.status === 'final') h += '<button class="ghost" onclick="reopenGame(\''+jsSafe(g.id)+'\')">Reopen this game for charting</button>';
         h += '<button class="ghost" onclick="'+back+'">‹ Back</button>';
         setApp(h);
       }, function(err){ setApp('<div class="card err">'+esc(errMsg(err))+'</div><button class="ghost" onclick="showHome()">‹ Back</button>'); });
     }
-    function reopenGame(id){ api('pt_reopenGame', { gameId:id }, function(){ toast('Game reopened'); showReport(id); }, function(err){ alert(errMsg(err)); }); }
+    function setExcluded(id, makeExcluded){
+      var msg = makeExcluded ? 'Stop counting this game in season stats? Nothing is deleted, and you can turn it back on any time.' : 'Count this game in season stats again?';
+      if (!confirm(msg)) return;
+      authApi('pt_excludeGame', { gameId:id, excluded:makeExcluded }, function(){ toast(makeExcluded ? 'Game no longer counted' : 'Game counted again'); showReport(id); }, function(err){ alert(errMsg(err)); });
+    }
+    function reopenGame(id){ authApi('pt_reopenGame', { gameId:id }, function(){ toast('Game reopened'); showReport(id); }, function(err){ alert(errMsg(err)); }); }
 
     /* ======================= HELPERS ======================= */
     function pct(p){ return p === null || p === undefined ? '—' : p + '%'; }
